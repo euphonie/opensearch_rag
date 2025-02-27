@@ -1,11 +1,15 @@
 from langchain_community.document_loaders import PyPDFLoader
 from opensearch_langchain_vector_store import get_vector_store
+from dotenv import load_dotenv
 
-file = "2022-Shareholder-Letter.pdf"
+
+file = "./files/history-zoroastrian.pdf"
+
+load_dotenv()
 
 def load():
     loader = PyPDFLoader(file)
-    docs = loader.load_and_split()
+    docs = loader.load()#loader.load_and_split()
     
     get_vector_store().add_documents(
         docs, 

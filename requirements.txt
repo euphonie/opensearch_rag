@@ -16,3 +16,4 @@ requests
 requests-aws4auth
 opensearch-py
 python-dotenv==1.0.0
+gradio>=4.0.0

@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  localstack:
+    container_name: localstack_bedrock
+    image: localstack/localstack:3.0.0
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=bedrock,opensearch,s3
+      - DEBUG=1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - ./localstack:/etc/localstack/init/ready.d
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ~/.ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  app:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - OLLAMA_HOST=http://ollama:11434
+    volumes:
+      - ..:/app
+    depends_on:
+      - localstack
+      - ollama
+
+volumes:
+  ollama_data: 

@@ -6,9 +6,15 @@ from requests_aws4auth import AWS4Auth
 import boto3
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 def get_vector_store():
     
-    embeddings = BedrockEmbeddings(model_id = "amazon.titan-embed-text-v1")
+    embeddings = BedrockEmbeddings(
+        model_id = "deepseek-r1:8b",
+    )
     
     service = "aoss"  # must set the service as 'aoss'
     region = "us-east-1"

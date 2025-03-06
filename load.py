@@ -1,29 +1,35 @@
-from langchain_community.document_loaders import PyPDFLoader
-from opensearch_langchain_vector_store import get_vector_store
-from dotenv import load_dotenv
+"""Document loading and processing entry point."""
+from __future__ import annotations
 
+from pathlib import Path
+from typing import Optional
 
-file = "./files/history-zoroastrian.pdf"
+from loader import (
+    DocumentLoader,
+    DocumentProcessor,
+    LoaderConfig
+)
 
-load_dotenv()
+def load_documents(
+    path: Path,
+    config: Optional[LoaderConfig] = None
+) -> None:
+    """
+    Load and process documents from path.
 
-def load():
-    loader = PyPDFLoader(file)
-    docs = loader.load()#loader.load_and_split()
-    
-    get_vector_store().add_documents(
-        docs, 
-        vector_field = "vector_field", 
-        engine="faiss", 
-        ef_construction=512,
-        ef_search=512,
-        m=16,
+    Args:
+        path: Path to file or directory
+        config: Optional loader configuration
+    """
+    loader = DocumentLoader(config)
+    processor = DocumentProcessor(config)
+
+    # Load documents
+    documents = (
+        loader.load_directory(path)
+        if path.is_dir()
+        else loader.load_file(path)
     )
 
-    print("data loaded!")
-
-def main():
-    load()
-
-if __name__ == "__main__":
-    main()
+    # Process and store documents
+    processor.process_documents(documents)

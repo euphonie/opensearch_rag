@@ -5,7 +5,6 @@ pypdf
 jq
 anthropic
 langchain
-#langchain-community==0.0.31
 langchain_community
 langchain_core
 streamlit
@@ -17,3 +16,6 @@ requests-aws4auth
 opensearch-py
 python-dotenv==1.0.0
 gradio>=4.0.0
+pypdfium2
+nltk
+PyMuPDF

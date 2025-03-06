@@ -3,3 +3,4 @@ env
 files
 images
 *.pyc
+.cache

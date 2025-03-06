@@ -17,22 +17,43 @@ Create an index with below configuration:
 
 ## Load data into OpenSearch
 
-Download the [Amazon 2022 Letter to Shareholders](https://s2.q4cdn.com/299287126/files/doc_financials/2023/ar/2022-Shareholder-Letter.pdf) and place it in the same directory.
+Choose a PDF file and place it in the `files` folder.
 
-Create a `.env` file and provide the following info about your Amazon OpenSearch setup:
+Create a `.env` file and provide the following configuration:
 
 ```bash
+# OpenSearch Configuration
 opensearch_index_name='<enter name>'
 opensearch_url='<enter URL>'
 engine='faiss'
 vector_field='vector_field'
 text_field='text'
 metadata_field='metadata'
+
+# Embedder Configuration
+EMBEDDER_TYPE=bedrock  # Use 'bedrock' for AWS Bedrock or 'ollama' for local Ollama
+
+# AWS Configuration (for Bedrock)
+AWS_DEFAULT_REGION=us-east-1
+AWS_ENDPOINT_URL=http://localhost:4566  # For LocalStack
+
+# Ollama Configuration
+OLLAMA_HOST=http://localhost:11434  # For local Ollama
 ```
+
+### Using AWS Bedrock (Default)
 
 Make sure you have [configured Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/setting-up.html) for access from your local machine. Also, you need access to `amazon.titan-embed-text-v1` embedding model and `anthropic.claude-v2` model in Amazon Bedrock - [follow these instructions](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) for details.
 
-Load PDF data:
+### Using Local Ollama
+
+If using Ollama, ensure you have the required models installed:
+
+```bash
+ollama pull nomic-embed-text
+```
+
+### Loading the Data
 
 ```bash
 python3 -m venv myenv
@@ -52,12 +73,4 @@ python3 app_rag.py
 
 The application will be available at http://localhost:8081
 
-You can ask questions, such as:
-
-```
-What is Amazon's doing in the field of generative AI?
-What were the key challenges Amazon faced in 2022?
-What were some of the important investments and initiatives mentioned in the letter?
-```
-
-![](images/rag_result.png)
+You can ask questions about your loaded documents.

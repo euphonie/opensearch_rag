@@ -7,45 +7,110 @@ services:
     ports:
       - "4566:4566"
     environment:
-      - SERVICES=bedrock,opensearch,s3
+      - SERVICES=bedrock,bedrock-runtime,opensearch,s3
       - DEBUG=1
       - DOCKER_HOST=unix:///var/run/docker.sock
       - AWS_DEFAULT_REGION=us-east-1
+      - EAGER_SERVICE_LOADING=1
+      - LS_LOG=trace
+    networks:
+      - opensearch-network
     volumes:
       - ./localstack:/etc/localstack/init/ready.d
       - "/var/run/docker.sock:/var/run/docker.sock"
     depends_on:
-      - ollama
+      # ollama:
+      #   condition: service_healthy
+      opensearch:
+        condition: service_healthy
 
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    volumes:
-      - ~/.ollama:/root/.ollama
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
-  app:
-    build:
-      context: ..
-      dockerfile: infra/Dockerfile
-    ports:
-      - "8081:8081"
+  opensearch:
+    image: opensearchproject/opensearch:2.11.1
+    container_name: opensearch
     environment:
-      - AWS_ENDPOINT_URL=http://localstack:4566
-      - AWS_DEFAULT_REGION=us-east-1
-      - AWS_ACCESS_KEY_ID=test
-      - AWS_SECRET_ACCESS_KEY=test
-      - OLLAMA_HOST=http://ollama:11434
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "DISABLE_SECURITY_PLUGIN=true"
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
     volumes:
-      - ..:/app
+      - opensearch-data:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    networks:
+      - opensearch-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"'"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.11.1
+    container_name: opensearch-dashboards
+    ports:
+      - "5601:5601"
+    environment:
+      - 'OPENSEARCH_HOSTS=["http://opensearch:9200"]'
+      - "DISABLE_SECURITY_DASHBOARDS_PLUGIN=true"
+    networks:
+      - opensearch-network
     depends_on:
-      - localstack
-      - ollama
+      opensearch:
+        condition: service_healthy
+
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ~/.ollama:/root/.ollama
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl --silent --fail http://localhost:11434/ > /dev/null || exit 1"]
+  #     interval: 20s
+  #     timeout: 10s
+  #     retries: 1
+  #     start_period: 40s
+
+  # app:
+  #   build:
+  #     context: ..
+  #     dockerfile: infra/Dockerfile
+  #   ports:
+  #     - "8081:8081"
+  #   environment:
+  #     - AWS_ENDPOINT_URL=http://localstack:4566
+  #     - AWS_DEFAULT_REGION=us-east-1
+  #     - AWS_ACCESS_KEY_ID=test
+  #     - AWS_SECRET_ACCESS_KEY=test
+  #     - OLLAMA_HOST=http://ollama:11434
+  #     - OPENSEARCH_URL=http://opensearch:9200
+  #   volumes:
+  #     - ..:/app
+  #   depends_on:
+  #     localstack:
+  #       condition: service_started
+  #     ollama:
+  #       condition: service_healthy
+  #     opensearch:
+  #       condition: service_healthy
 
 volumes:
-  ollama_data: 
+  ollama_data:
+  opensearch-data: 
+
+networks:
+  opensearch-network:
+    driver: bridge
+

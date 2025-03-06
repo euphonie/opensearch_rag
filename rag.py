@@ -1,63 +1,126 @@
+from langchain_community.embeddings import BedrockEmbeddings, OllamaEmbeddings
+from langchain_community.llms import Bedrock
+from langchain_community.llms import Ollama
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
-from langchain.llms.bedrock import Bedrock
-import boto3
 from opensearch_langchain_vector_store import get_vector_store
+from dotenv import load_dotenv
+import os
 
+# Load environment variables
+load_dotenv()
 
-def create_bedrock_llm(bedrock_client, model_version_id):
-    bedrock_llm = Bedrock(
-        model_id=model_version_id, 
-        client=bedrock_client,
-        model_kwargs={'temperature': 0}
+def get_embedder(embedder_type: str = None) -> BedrockEmbeddings | OllamaEmbeddings:
+    """
+    Get the embedder based on configuration
+    Args:
+        embedder_type: Optional override for embedder type
+    Returns:
+        Embeddings instance
+    """
+    # Use environment variable if not explicitly specified
+    embedder_type = embedder_type or os.getenv("EMBEDDER_TYPE", "bedrock")
+    
+    if embedder_type.lower() == "bedrock":
+        return BedrockEmbeddings(
+            credentials_profile_name="default",
+            region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"),
+            endpoint_url=os.getenv("AWS_ENDPOINT_URL"),
+            model_id=os.getenv("BEDROCK_MODEL_ID", "amazon.titan-embed-text-v1")
         )
-    return bedrock_llm
+    elif embedder_type.lower() == "ollama":
+        return OllamaEmbeddings(
+            base_url=os.getenv("OLLAMA_HOST", "http://localhost:11434"),
+            model=os.getenv("OLLAMA_MODEL", "mxbai-embed-large")
+        )
+    else:
+        raise ValueError(f"Unsupported embedder type: {embedder_type}")
 
-def search(question):
-    region = "us-east-1"
-
-    bedrock_client = boto3.client("bedrock-runtime", region_name=region)
+def get_llm(llm_type: str = None) -> Bedrock | Ollama:
+    """
+    Get the LLM based on configuration
+    Args:
+        llm_type: Optional override for LLM type
+    Returns:
+        LLM instance
+    """
+    # Use environment variable if not explicitly specified
+    llm_type = llm_type or os.getenv("LLM_TYPE", "bedrock")
     
-    bedrock_model_id = "anthropic.claude-v2"
+    if llm_type.lower() == "bedrock":
+        return Bedrock(
+            credentials_profile_name="default",
+            region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"),
+            endpoint_url=os.getenv("AWS_ENDPOINT_URL"),
+            model_id=os.getenv("BEDROCK_LLM_MODEL_ID", "anthropic.claude-v2"),
+            model_kwargs={"temperature": 0.7, "max_tokens_to_sample": 4096}
+        )
+    elif llm_type.lower() == "ollama":
+        return Ollama(
+            base_url=os.getenv("OLLAMA_HOST", "http://localhost:11434"),
+            model=os.getenv("OLLAMA_LLM_MODEL", "llama2"),
+            temperature=0.7
+        )
+    else:
+        raise ValueError(f"Unsupported LLM type: {llm_type}")
 
-    bedrock_llm = Bedrock(
-        model_id=bedrock_model_id, 
-        client=bedrock_client,
-        model_kwargs={'temperature': 0}
-    )
-
-    prompt_template = """Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer. don't include harmful content
-
-    {context}
-
-    Question: {question}
-    Answer:"""
-    PROMPT = PromptTemplate(
-        template=prompt_template, input_variables=["context", "question"]
-    )
-    
-    #print(f"Starting the chain with KNN similarity using OpenSearch")
-
-    qa = RetrievalQA.from_chain_type(llm=bedrock_llm, 
-                                     chain_type="stuff", 
-                                     retriever=get_vector_store().as_retriever(search_kwargs={'k': 10}),
-                                     return_source_documents=True,
-                                     chain_type_kwargs={"prompt": PROMPT, "verbose": True},
-                                     verbose=True)
-    
-    response = qa.invoke(question, return_only_outputs=False)
+def search(question: str, embedder_type: str = None, llm_type: str = None):
+    """
+    Perform semantic search and RAG
+    Args:
+        question: Query string
+        embedder_type: Optional override for embedder type
+        llm_type: Optional override for LLM type
+    Returns:
+        Tuple of (semantic_results, rag_result)
+    """
+    try:
+        # Get vector store with specified embedder
+        vector_store = get_vector_store(embedder_type)
         
-    source_documents = response.get('source_documents')
-    
-    # for d in source_documents:
-    #     print(f"With the following similar content from OpenSearch:\n{d.page_content}\n")
-    #     print(f"Metadata: {d.metadata}")
-    
-    flattened_results = [{"content":d.page_content, "metadata":d.metadata} for d in source_documents]
-
-    #print(f"The answer from Bedrock {bedrock_model_id} is: {response.get('result')}")
-
-    return flattened_results, response.get('result')
+        # Get LLM
+        llm = get_llm(llm_type)
+        
+        # Create retriever
+        retriever = vector_store.as_retriever(
+            search_type="similarity",
+            search_kwargs={"k": 3}
+        )
+        
+        # Create RAG chain
+        qa_chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            chain_type="stuff",
+            retriever=retriever,
+            return_source_documents=True
+        )
+        
+        # Get semantic search results
+        semantic_results = retriever.get_relevant_documents(question)
+        
+        # Get RAG result
+        rag_result = qa_chain({"query": question})
+        
+        return semantic_results, rag_result
+        
+    except Exception as e:
+        print(f"Error in search: {str(e)}")
+        raise
 
 if __name__ == "__main__":
-    search()
+    # Test the search functionality
+    try:
+        question = "What is the main topic of the document?"
+        semantic_results, rag_result = search(question)
+        
+        print("\nTest Search Results:")
+        print(f"Query: {question}")
+        print("\nSemantic Search Results:")
+        for i, doc in enumerate(semantic_results, 1):
+            print(f"\n{i}. {doc.page_content[:200]}...")
+        
+        print("\nRAG Response:")
+        print(rag_result['result'])
+        
+    except Exception as e:
+        print(f"Error in test: {str(e)}")

@@ -3,7 +3,7 @@ from langchain_community.llms import Bedrock
 from langchain_community.llms import Ollama
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
-from opensearch_langchain_vector_store import get_vector_store
+from loader.vector_store import get_vector_store
 from dotenv import load_dotenv
 import os
 
@@ -64,7 +64,7 @@ def get_llm(llm_type: str = None) -> Bedrock | Ollama:
     else:
         raise ValueError(f"Unsupported LLM type: {llm_type}")
 
-def search(question: str, embedder_type: str = None, llm_type: str = None):
+def search(question: str):
     """
     Perform semantic search and RAG
     Args:
@@ -75,6 +75,8 @@ def search(question: str, embedder_type: str = None, llm_type: str = None):
         Tuple of (semantic_results, rag_result)
     """
     try:
+        embedder_type = os.getenv("EMBEDDER_TYPE", "bedrock")
+        llm_type = os.getenv("LLM_TYPE", "bedrock")
         # Get vector store with specified embedder
         vector_store = get_vector_store(embedder_type)
         

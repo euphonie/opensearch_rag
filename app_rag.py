@@ -16,7 +16,7 @@ from query_processor import QueryProcessor
 load_dotenv()
 
 from loader.document_loader import DocumentLoader
-from loader.vector_store import VectorStore
+from loader.vector_store import get_vector_store
 from loader.config import LoaderConfig
 from loader.embeddings import EmbeddingsManager
 
@@ -64,7 +64,7 @@ def process_files(files: List[str]) -> str:
         documents = loader.load_documents(files)
         
         embeddings_manager = EmbeddingsManager()
-        vector_store = VectorStore(embeddings_manager)
+        vector_store = get_vector_store(embeddings_manager)
         vector_store.add_documents(documents)
         
         return f"Successfully processed {len(files)} files"

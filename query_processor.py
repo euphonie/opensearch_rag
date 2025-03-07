@@ -25,8 +25,19 @@ class QueryProcessor:
         
         semantic_table = self._format_semantic_results(semantic_results)
         answer = self._process_rag_result(rag_result)
+
+        history = [
+            {
+                "role": "assistant",
+                "content": answer,
+            },
+            {
+                "role": "user",
+                "content": question,
+            },
+        ]
         
-        return answer, semantic_table
+        return history, semantic_table
     
     def _format_semantic_results(self, semantic_results):
         """
@@ -58,7 +69,7 @@ class QueryProcessor:
         
         if isinstance(rag_result, dict):
             # Standard LangChain output format (e.g., from Claude)
-            answer = rag_result.get('output', str(rag_result))
+            answer = rag_result.get('result', rag_result.get('response', str(rag_result)))
         elif isinstance(rag_result, str):
             # Direct string output (e.g., from phi3.5)
             answer = rag_result

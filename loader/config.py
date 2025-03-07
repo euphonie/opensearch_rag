@@ -27,6 +27,7 @@ class LoaderConfig:
         self.ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
         self.embeddings_model = os.getenv("EMBEDDINGS_MODEL", "mxbai-embed-large")
         self.llm_model = os.getenv("LLM_MODEL", "phi3.5")
+        self.embedder_type = os.getenv("EMBEDDER_TYPE", "bedrock")
 
         # General settings
         self.chunk_size = int(os.getenv("CHUNK_SIZE", "1000"))
@@ -61,5 +62,6 @@ class LoaderConfig:
             "openai_org_id": self.openai_org_id,
             "ollama_host": self.ollama_host,
             "embeddings_model": self.embeddings_model,
-            "llm_model": self.llm_model
+            "llm_model": self.llm_model,
+            "embedder_type": self.embedder_type
         } 

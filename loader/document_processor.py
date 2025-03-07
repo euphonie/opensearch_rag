@@ -8,7 +8,7 @@ from langchain.docstore.document import Document
 from .config import LoaderConfig
 from .text_splitter import TextSplitter
 from .embeddings import EmbeddingsManager
-from .vector_store import VectorStoreManager
+from .vector_store import get_vector_store
 
 class DocumentProcessor:
     """Process and store documents."""
@@ -23,7 +23,7 @@ class DocumentProcessor:
         self.config = config or LoaderConfig()
         self.text_splitter = TextSplitter(self.config)
         self.embeddings_manager = EmbeddingsManager(self.config)
-        self.vector_store = VectorStoreManager(self.config)
+        self.vector_store = get_vector_store(self.config.embedder_type)
 
     def process_documents(self, documents: List[Document]) -> None:
         """

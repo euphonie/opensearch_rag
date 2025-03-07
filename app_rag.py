@@ -111,27 +111,26 @@ def create_interface():
             """
         )
         
-        with gr.Row():
-            with gr.Column(scale=2):
-                # File upload section
-                file_upload = gr.File(
-                    label="Upload PDF Documents",
-                    file_types=[".pdf"],
-                    file_count="multiple",
-                    type="filepath"
-                )
-                upload_button = gr.Button("Process Files", variant="primary")
-                upload_status = gr.Textbox(label="Upload Status", interactive=False)
-                
-                # Configuration info
-                gr.Markdown(
-                    f"""
-                    ### Current Configuration:
-                    - Embedder: {os.getenv('EMBEDDER_TYPE', 'bedrock')}
-                    - LLM: {os.getenv('LLM_TYPE', 'bedrock')}
-                    - Model: {os.getenv('OLLAMA_LLM_MODEL') if os.getenv('LLM_TYPE') == 'ollama' else os.getenv('BEDROCK_LLM_MODEL_ID')}
-                    """
-                )
+        with gr.Sidebar():
+            # File upload section
+            file_upload = gr.File(
+                label="Upload PDF Documents",
+                file_types=[".pdf"],
+                file_count="multiple",
+                type="filepath"
+            )
+            upload_button = gr.Button("Process Files", variant="primary")
+            upload_status = gr.Textbox(label="Upload Status", interactive=False)
+            
+            # Configuration info
+            gr.Markdown(
+                f"""
+                ### Current Configuration:
+                - Embedder: {os.getenv('EMBEDDER_TYPE', 'bedrock')}
+                - LLM: {os.getenv('LLM_TYPE', 'bedrock')}
+                - Model: {os.getenv('OLLAMA_LLM_MODEL') if os.getenv('LLM_TYPE') == 'ollama' else os.getenv('BEDROCK_LLM_MODEL_ID')}
+                """
+            )
         
         with gr.Row():
             with gr.Column(scale=2):

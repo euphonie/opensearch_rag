@@ -7,6 +7,7 @@ from .embeddings import EmbeddingsManager
 from .text_splitter import TextSplitter
 from .exceptions import LoaderError
 from .config import LoaderConfig
+from .vector_store import get_vector_store
 
 __all__ = [
     "DocumentLoader",
@@ -14,5 +15,6 @@ __all__ = [
     "EmbeddingsManager", 
     "TextSplitter",
     "LoaderError",
-    "LoaderConfig"
+    "LoaderConfig",
+    "get_vector_store"
 ] 

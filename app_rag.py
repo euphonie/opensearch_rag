@@ -23,7 +23,7 @@ from loader.embeddings import EmbeddingsManager
 
 processor = QueryProcessor(rag)
 
-def handle_file_upload(files):
+async def handle_file_upload(files):
     """Handle uploaded PDF files"""
     try:
         # Create files directory if it doesn't exist
@@ -34,19 +34,28 @@ def handle_file_upload(files):
         for existing_file in files_dir.glob("*.pdf"):
             existing_file.unlink()
         
-        # Save uploaded files
-        for file in files:
+        total_files = len(files)
+        for idx, file in enumerate(files, 1):
             # Copy file to files directory
             dest_path = files_dir / Path(file.name).name
             shutil.copy2(file.name, dest_path)
+            
+            # Update status before processing
+            status = f"Processing file {idx}/{total_files}: {Path(file.name).name}"
+            gr.Info(status)
+            yield status
+            
+            # Process the file and get progress updates
+            async for progress in load.load_documents(Path(f"{file.name}")):
+                if isinstance(progress, float):
+                    percentage = f"{progress:.1f}%"
+                    status = f"Processing file {idx}/{total_files}: {Path(file.name).name} - {percentage}"
+                    yield status
         
-            # Process the files
-            load.load_documents(Path(f"{file.name}"))
-        
-        return f"Successfully processed {len(files)} files"
+        yield f"Successfully processed {total_files} files"
     except Exception as e:
         traceback.print_exc()
-        return f"Error processing files: {str(e)}"
+        yield f"Error processing files: {str(e)}"
 
 def process_query(question):
     """Process the user query and return results"""
@@ -63,8 +72,7 @@ def process_files(files: List[str]) -> str:
         loader = DocumentLoader(config)
         documents = loader.load_documents(files)
         
-        embeddings_manager = EmbeddingsManager()
-        vector_store = get_vector_store(embeddings_manager)
+        vector_store = get_vector_store(config.embedder_type)
         vector_store.add_documents(documents)
         
         return f"Successfully processed {len(files)} files"
@@ -163,7 +171,13 @@ def create_interface():
         upload_button.click(
             fn=handle_file_upload,
             inputs=[file_upload],
-            outputs=[upload_status]
+            outputs=[upload_status],
+            show_progress=True,
+            queue=True  # Enable queuing for async functions
+        ).then(
+            lambda: None,  # Reset function
+            None,  # No inputs
+            [file_upload]  # Reset file upload component
         )
         
         # Handle chat

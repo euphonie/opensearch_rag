@@ -24,14 +24,23 @@ class EmbeddingsManager:
             model=self.config.embeddings_model
         )
     
-    def get_embeddings(self, documents: List[Document]) -> List[List[float]]:
+    async def get_embeddings(self, documents: List[Document]) -> List[List[float]]:
         """
         Get embeddings for a list of documents using the embeddings model.
 
         Args:
             documents: List of documents to embed
         """
-        return self.embeddings.embed_documents(documents)
+        return self.embeddings.aembed_documents(documents)
+    
+    async def aembed_query(self, query: str) -> List[float]:
+        """
+        Get embeddings for a query using the embeddings model.
+
+        Args:
+            query: Query to embed
+        """
+        return self.embeddings.aembed_query(query)
 
     def get_embeddings_model(self) -> OllamaEmbeddings:
         """

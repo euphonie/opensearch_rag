@@ -28,12 +28,12 @@ class QueryProcessor:
 
         history = [
             {
-                "role": "assistant",
-                "content": answer,
-            },
-            {
                 "role": "user",
                 "content": question,
+            },
+            {
+                "role": "assistant",
+                "content": answer,
             },
         ]
         

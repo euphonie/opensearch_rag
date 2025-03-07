@@ -19,3 +19,4 @@ gradio>=4.0.0
 pypdfium2
 nltk
 PyMuPDF
+asyncio

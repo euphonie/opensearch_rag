@@ -28,6 +28,7 @@ class LoaderConfig:
         self.embeddings_model = os.getenv("EMBEDDINGS_MODEL", "mxbai-embed-large")
         self.llm_model = os.getenv("LLM_MODEL", "phi3.5")
         self.embedder_type = os.getenv("EMBEDDER_TYPE", "bedrock")
+        self.llm_type = os.getenv("LLM_TYPE", "bedrock")
 
         # General settings
         self.chunk_size = int(os.getenv("CHUNK_SIZE", "1000"))

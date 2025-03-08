@@ -1,47 +1,14 @@
-import os
-
-from dotenv import load_dotenv
 from langchain.chains import RetrievalQA
-from langchain_community.embeddings import BedrockEmbeddings, OllamaEmbeddings
 from langchain_community.llms import Bedrock, Ollama
 
-from loader.vector_store import get_vector_store
+from loader.config import LoaderConfig
+from loader.vector_store import VectorStore
 from utils.logging_config import setup_logger
-
-# Load environment variables
-load_dotenv()
 
 logger = setup_logger(__name__)
 
 
-def get_embedder(embedder_type: str = None) -> BedrockEmbeddings | OllamaEmbeddings:
-    """
-    Get the embedder based on configuration
-    Args:
-        embedder_type: Optional override for embedder type
-    Returns:
-        Embeddings instance
-    """
-    # Use environment variable if not explicitly specified
-    embedder_type = embedder_type or os.getenv('EMBEDDER_TYPE', 'bedrock')
-
-    if embedder_type.lower() == 'bedrock':
-        return BedrockEmbeddings(
-            credentials_profile_name='default',
-            region_name=os.getenv('AWS_DEFAULT_REGION', 'us-east-1'),
-            endpoint_url=os.getenv('AWS_ENDPOINT_URL'),
-            model_id=os.getenv('BEDROCK_MODEL_ID', 'amazon.titan-embed-text-v1'),
-        )
-    elif embedder_type.lower() == 'ollama':
-        return OllamaEmbeddings(
-            base_url=os.getenv('OLLAMA_HOST', 'http://localhost:11434'),
-            model=os.getenv('OLLAMA_MODEL', 'mxbai-embed-large'),
-        )
-    else:
-        raise ValueError(f'Unsupported embedder type: {embedder_type}')
-
-
-def get_llm(llm_type: str = None) -> Bedrock | Ollama:
+def get_llm(config: LoaderConfig, llm_type: str = None) -> Bedrock | Ollama:
     """
     Get the LLM based on configuration
     Args:
@@ -50,47 +17,45 @@ def get_llm(llm_type: str = None) -> Bedrock | Ollama:
         LLM instance
     """
     # Use environment variable if not explicitly specified
-    llm_type = llm_type or os.getenv('LLM_TYPE', 'bedrock')
+    llm_type = config.llm_type
 
     if llm_type.lower() == 'bedrock':
         return Bedrock(
             credentials_profile_name='default',
-            region_name=os.getenv('AWS_DEFAULT_REGION', 'us-east-1'),
-            endpoint_url=os.getenv('AWS_ENDPOINT_URL'),
-            model_id=os.getenv('BEDROCK_LLM_MODEL_ID', 'anthropic.claude-v2'),
+            region_name=config.region_name,
+            endpoint_url=config.endpoint_url,
+            model_id=config.model_id,
             model_kwargs={'temperature': 0.7, 'max_tokens_to_sample': 4096},
         )
     elif llm_type.lower() == 'ollama':
         return Ollama(
-            base_url=os.getenv('OLLAMA_HOST', 'http://localhost:11434'),
-            model=os.getenv('OLLAMA_LLM_MODEL', 'llama2'),
+            base_url=config.base_url,
+            model=config.model,
             temperature=0.7,
         )
     else:
         raise ValueError(f'Unsupported LLM type: {llm_type}')
 
 
-def search(question: str):
+def search(question: str, config: LoaderConfig, vector_store: VectorStore):
     """
     Perform semantic search and RAG
     Args:
         question: Query string
-        embedder_type: Optional override for embedder type
-        llm_type: Optional override for LLM type
+        vector_store: Vector store instance
     Returns:
         Tuple of (semantic_results, rag_result)
     """
     try:
-        embedder_type = os.getenv('EMBEDDER_TYPE', 'bedrock')
-        llm_type = os.getenv('LLM_TYPE', 'bedrock')
+        llm_type = config.llm_type
         # Get vector store with specified embedder
-        vector_store = get_vector_store(embedder_type)
+        store = vector_store.get_store()
 
         # Get LLM
-        llm = get_llm(llm_type)
+        llm = get_llm(config, llm_type)
 
         # Create retriever
-        retriever = vector_store.as_retriever(
+        retriever = store.as_retriever(
             search_type='similarity',
             search_kwargs={'k': 3},
         )

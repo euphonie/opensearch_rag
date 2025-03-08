@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 
 import rag
-from loader import DocumentProcessor, LoaderConfig
+from loader import DocumentProcessor, LoaderConfig, VectorStore
 from query_processor import QueryProcessor
 from ui.main import create_interface
 from utils.logging_config import setup_logger
@@ -12,10 +12,11 @@ load_dotenv()
 logger = setup_logger(__name__)
 
 if __name__ == '__main__':
-    processor = QueryProcessor(rag)
     config = LoaderConfig()
-    document_processor = DocumentProcessor(config)
-    demo = create_interface(config, processor, document_processor)
+    vector_store = VectorStore(config)
+    processor = QueryProcessor(rag, config, vector_store)
+    document_processor = DocumentProcessor(config, vector_store)
+    demo = create_interface(config, processor, document_processor, vector_store)
     logger.info('Starting Gradio server...')
     try:
         APP_HOST = os.getenv('APP_HOST', '127.0.0.1')

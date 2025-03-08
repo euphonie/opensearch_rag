@@ -9,6 +9,8 @@ if TYPE_CHECKING:
 
     from langchain.docstore.document import Document
 
+    from .vector_store import VectorStore
+
 import asyncio
 import traceback
 
@@ -17,13 +19,16 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 from .config import LoaderConfig
 from .embeddings import EmbeddingsManager
-from .vector_store import get_vector_store
 
 
 class DocumentProcessor:
     """Process and store documents."""
 
-    def __init__(self, config: LoaderConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: LoaderConfig | None = None,
+        vector_store: VectorStore | None = None,
+    ) -> None:
         """
         Initialize document processor.
 
@@ -32,7 +37,7 @@ class DocumentProcessor:
         """
         self.config = config or LoaderConfig()
         self.embeddings_manager = EmbeddingsManager(self.config)
-        self.vector_store = get_vector_store(self.config.embedder_type)
+        self.vector_store = vector_store
 
     async def process_chunk(
         self,
@@ -47,7 +52,7 @@ class DocumentProcessor:
             vector_store: Vector store instance
         """
         # Add to vector store - it will handle embeddings internally
-        return self.vector_store.add_texts(
+        return self.vector_store.get_store().add_texts(
             texts=[chunk.page_content],
             metadatas=[chunk.metadata],
         )
@@ -117,29 +122,46 @@ class DocumentProcessor:
             file_path: Path to document file
 
         Yields:
-            Progress percentage
+            Progress percentage (float between 0 and 100)
         """
         try:
             # Get total pages
             total_pages = 0
             with fitz.open(str(file_path)) as doc:
                 total_pages = len(doc)
+                if total_pages == 0:
+                    raise ValueError('Document contains no pages')
 
             # Process each page
             with fitz.open(str(file_path)) as doc:
                 for i, page in enumerate(doc):
                     text = page.get_text()
-                    metadata = {'source': str(file_path), 'page': i + 1}
+                    metadata = {
+                        'source': str(file_path),
+                        'page': i + 1,
+                        'total_pages': total_pages,
+                    }
 
                     # Process page in parallel
+                    page_progress = 0
                     async for progress in self.process_document_parallel(
                         text=text,
                         metadata=metadata,
                     ):
                         # Calculate overall progress including page progress
-                        overall_progress = (i * 100 + progress) / total_pages
+                        page_progress = progress
+                        overall_progress = ((i * 100) + page_progress) / total_pages
+                        yield overall_progress
+
+                    # Ensure we yield 100% for each page
+                    if page_progress < 100:
+                        overall_progress = ((i + 1) * 100) / total_pages
                         yield overall_progress
 
         except Exception as e:
             traceback.print_exc()
-            raise e
+            raise ValueError(f'Error processing document: {str(e)}') from e
+
+    async def get_indexed_documents(self):
+        """Get list of indexed documents from OpenSearch."""
+        return []

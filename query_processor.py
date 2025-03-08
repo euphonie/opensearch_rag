@@ -6,14 +6,17 @@ logger = setup_logger(__name__)
 
 
 class QueryProcessor:
-    def __init__(self, rag_system):
+    def __init__(self, rag_system, config, vector_store):
         """
         Initialize QueryProcessor with a RAG system.
 
         Args:
             rag_system: The RAG system instance used for searching
+            vector_store: The vector store instance used for semantic search
         """
         self.rag = rag_system
+        self.vector_store = vector_store
+        self.config = config
 
     def process_query(self, question):
         """
@@ -26,7 +29,11 @@ class QueryProcessor:
             tuple: (answer, semantic_table) where answer is the processed RAG result
                   and semantic_table is the formatted semantic search results
         """
-        semantic_results, rag_result = self.rag.search(question=question)
+        semantic_results, rag_result = self.rag.search(
+            question=question,
+            config=self.config,
+            vector_store=self.vector_store,
+        )
 
         semantic_table = self._format_semantic_results(semantic_results)
         answer = self._process_rag_result(rag_result)

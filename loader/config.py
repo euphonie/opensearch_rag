@@ -40,6 +40,11 @@ class LoaderConfig:
             'SUPPORTED_EXTENSIONS',
             '.txt,.md,.py',
         ).split(',')
+        self.embedding_size = int(os.getenv('EMBEDDING_SIZE', '3072'))
+        self.opensearch_url = os.getenv('OPENSEARCH_URL')
+        self.opensearch_username = os.getenv('OPENSEARCH_USERNAME')
+        self.opensearch_password = os.getenv('OPENSEARCH_PASSWORD')
+        self.opensearch_index_name = os.getenv('OPENSEARCH_INDEX_NAME')
 
     def validate(self):
         """

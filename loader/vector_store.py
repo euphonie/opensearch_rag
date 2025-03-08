@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from loader.config import LoaderConfig
 
 from dotenv import load_dotenv
 from langchain_community.embeddings import BedrockEmbeddings, OllamaEmbeddings
@@ -10,58 +13,68 @@ from opensearchpy import RequestsHttpConnection
 load_dotenv()
 
 
-def get_vector_store(embedder_type: str):
-    if embedder_type == 'bedrock':
-        embeddings = BedrockEmbeddings(
-            model_id=os.getenv('BEDROCK_LLM_MODEL_ID'),
-        )
-    elif embedder_type == 'ollama':
-        embeddings = OllamaEmbeddings(
-            model=os.getenv('OLLAMA_LLM_MODEL'),
-        )
-    else:
-        raise ValueError(f'Unsupported embedder type: {embedder_type}')
+class VectorStore:
+    def __init__(self, config: LoaderConfig):
+        self.config = config
+        self.embedder_type = config.embedder_type
+        self.embeddings = self.get_embeddings()
 
-    opensearch_index_name = os.getenv('opensearch_index_name')
-    opensearch_url = (os.getenv('opensearch_url'),)
+    def get_embeddings(self):
+        if self.embedder_type == 'bedrock':
+            return BedrockEmbeddings(
+                model_id=self.config.bedrock_model_id,
+            )
+        elif self.embedder_type == 'ollama':
+            try:
+                return OllamaEmbeddings(
+                    model=self.config.llm_model,
+                )
+            except Exception as e:
+                raise ValueError(f'Error initializing Ollama embeddings: {e}') from e
+        else:
+            raise ValueError(f'Unsupported embedder type: {self.embedder_type}')
 
-    # Define dimension based on the embedding model
-    # Ollama's default models typically use 3072 dimensions
-    embedding_dimension = 3072
+    def get_store(self):
+        opensearch_index_name = self.config.opensearch_index_name
+        opensearch_url = (self.config.opensearch_url,)
 
-    # Create index mapping with proper dimension
-    index_mapping = {
-        'settings': {
-            'index': {
-                'knn': True,
-                'knn.algo_param.ef_search': 100,
-            },
-        },
-        'mappings': {
-            'properties': {
-                'vector_field': {
-                    'type': 'knn_vector',
-                    'dimension': embedding_dimension,
-                    'method': {
-                        'name': 'hnsw',
-                        'space_type': 'cosinesimil',
-                        'engine': 'nmslib',
-                    },
+        # Define dimension based on the embedding model
+        # Ollama's default models typically use 3072 dimensions
+        embedding_dimension = self.config.embedding_size
+
+        # Create index mapping with proper dimension
+        index_mapping = {
+            'settings': {
+                'index': {
+                    'knn': True,
+                    'knn.algo_param.ef_search': 100,
                 },
-                'text': {'type': 'text'},
-                'metadata': {'type': 'object'},
             },
-        },
-    }
+            'mappings': {
+                'properties': {
+                    'vector_field': {
+                        'type': 'knn_vector',
+                        'dimension': embedding_dimension,
+                        'method': {
+                            'name': 'hnsw',
+                            'space_type': 'cosinesimil',
+                            'engine': 'nmslib',
+                        },
+                    },
+                    'text': {'type': 'text'},
+                    'metadata': {'type': 'object'},
+                },
+            },
+        }
 
-    store = OpenSearchVectorSearch(
-        embedding_function=embeddings,
-        opensearch_url=opensearch_url,
-        index_name=opensearch_index_name,
-        engine='nmslib',
-        timeout=300,
-        connection_class=RequestsHttpConnection,
-        index_mapping=index_mapping,
-    )
+        store = OpenSearchVectorSearch(
+            embedding_function=self.embeddings,
+            opensearch_url=opensearch_url,
+            index_name=opensearch_index_name,
+            engine='nmslib',
+            timeout=300,
+            connection_class=RequestsHttpConnection,
+            index_mapping=index_mapping,
+        )
 
-    return store
+        return store

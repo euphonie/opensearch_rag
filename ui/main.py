@@ -6,7 +6,12 @@ import gradio as gr
 
 from utils.logging_config import setup_logger
 
-from .actions import clear_chat, handle_file_upload
+from .actions import (
+    clear_chat,
+    handle_file_upload,
+    show_document_details,
+    update_documents_list,
+)
 
 # Set up logger for this module
 logger = setup_logger(__name__)
@@ -67,14 +72,23 @@ async def preview_pdf(files: list[gr.File]) -> list[gr.Image]:
 
 
 # Create the Gradio interface
-def create_interface(config, processor, document_processor):
+def create_interface(config, processor, document_processor, vector_store):
     logger.info('Initializing Gradio interface')
 
     async def handle_file_upload_wrapper(files):
         """Wrapper to handle the async generator"""
         logger.info(f'Processing {len(files)} files')
-        async for status in handle_file_upload(files, document_processor):
-            yield status
+        return await handle_file_upload(files, document_processor)
+
+    async def update_documents_list_wrapper():
+        """Wrapper to handle document list updates"""
+        logger.info('Updating documents list')
+        return await update_documents_list(document_processor)
+
+    async def show_document_details_wrapper(evt: gr.SelectData):
+        """Wrapper to handle document details display"""
+        logger.info('Showing document details')
+        return await show_document_details(evt, document_processor)
 
     css = """div.logo-container { display: flex;  justify-content: center; padding: 1rem; } div.logo-container svg {width: 30px; height: 30px; transition: all 0.3s ease; } div.contain-element.collapsed div.logo-container svg { width: 24px; height: 24px;}"""
 
@@ -154,6 +168,25 @@ def create_interface(config, processor, document_processor):
                     clear_btn = gr.Button('Clear Chat', variant='secondary')
 
             with gr.Column(scale=1):
+                # Indexed Documents List
+                with gr.Accordion('Documents in Vector Store', open=True):
+                    documents_list = gr.Dataset(
+                        components=[gr.Textbox()],
+                        label='Click a document to view details',
+                        samples=[],
+                        type='index',
+                        elem_classes='documents-list',
+                    )
+
+                    # Document Details Dialog Components
+                    doc_title = gr.Markdown(visible=False)
+                    with gr.Blocks(visible=False) as doc_details_box:
+                        doc_metadata = gr.JSON(label='Metadata')
+                        doc_stats = gr.DataFrame(
+                            headers=['Property', 'Value'],
+                            label='Document Statistics',
+                        )
+
                 # Semantic search results
                 semantic_output = gr.Textbox(
                     label='Semantic Search Results',
@@ -161,7 +194,16 @@ def create_interface(config, processor, document_processor):
                     show_copy_button=True,
                 )
 
-        # Handle file upload and preview
+        # Add custom CSS for document list and details
+        css = (
+            css
+            + """
+        .documents-list { max-height: 200px; overflow-y: auto; margin-bottom: 1rem; }
+        .documents-list::-webkit-scrollbar { width: 6px; }
+        .documents-list::-webkit-scrollbar-thumb { background: #666; border-radius: 3px; }
+        """
+        )
+
         file_upload.change(
             fn=preview_pdf,
             inputs=[file_upload],
@@ -175,10 +217,25 @@ def create_interface(config, processor, document_processor):
             outputs=[upload_status],
             show_progress=True,
             queue=True,
+        ).success(
+            fn=update_documents_list_wrapper,
+            outputs=[documents_list],
         ).then(
             lambda: None,
             None,
             [file_upload],
+        )
+
+        # Show document details when clicked
+        documents_list.select(
+            fn=show_document_details_wrapper,
+            outputs=[
+                doc_title,
+                doc_title,
+                doc_details_box,
+                doc_metadata,
+                doc_stats,
+            ],
         )
 
         # Handle chat
@@ -193,6 +250,12 @@ def create_interface(config, processor, document_processor):
             fn=clear_chat,
             inputs=[],
             outputs=[chatbot, question_input, semantic_output],
+        )
+
+        # Initial documents list load
+        demo.load(
+            fn=update_documents_list_wrapper,
+            outputs=[documents_list],
         )
 
     logger.info('Gradio interface initialized successfully')

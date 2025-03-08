@@ -83,4 +83,4 @@ The OpenSearch instance is configured with:
 - Security plugin disabled for development
 - Memory limited to 512MB
 - Data persistence through Docker volume
-- Health check ensuring cluster is green before dependent services start 
+- Health check ensuring cluster is green before dependent services start

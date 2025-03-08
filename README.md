@@ -7,7 +7,7 @@
 
 ## Setup Amazon OpenSearch
 
-Create an Amazon OpenSearch Serverless collection (type **Vector search** and choose **Easy create** option) - [documentation](https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-manage.html). 
+Create an Amazon OpenSearch Serverless collection (type **Vector search** and choose **Easy create** option) - [documentation](https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-manage.html).
 
 ![](images/collection.png)
 

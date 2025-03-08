@@ -1,53 +1,44 @@
-import shutil
-from pathlib import Path
-from typing import List, AsyncGenerator
-import traceback
-import gradio as gr
-from loader import DocumentLoader, LoaderConfig, get_vector_store
+from typing import Any
 
-async def handle_file_upload(files, document_processor) -> AsyncGenerator[str, None]:
+from utils.logging_config import setup_logger
+
+logger = setup_logger(__name__)
+
+
+async def handle_file_upload(files: list[str], document_processor: Any) -> str:
     """
-    Handle uploaded PDF files.
-    
+    Handle file upload and processing.
+
     Args:
-        files: List of uploaded files
+        files: List of file paths
         document_processor: Document processor instance
-    
-    Yields:
-        Status messages about the processing progress
-    """
-    try:
-        # Create files directory if it doesn't exist
-        files_dir = Path("files")
-        files_dir.mkdir(exist_ok=True)
-        
-        # Clear existing files
-        for existing_file in files_dir.glob("*.pdf"):
-            existing_file.unlink()
-        
-        total_files = len(files)
-        for idx, file in enumerate(files, 1):
-            # Copy file to files directory
-            dest_path = files_dir / Path(file.name).name
-            shutil.copy2(file.name, dest_path)
-            
-            # Update status before processing
-            status = f"Processing file {idx}/{total_files}: {Path(file.name).name}"
-            gr.Info(status)
-            yield status
-            
-            # Process the file and get progress updates
-            async for progress in document_processor.load_documents(Path(f"{file.name}")):
-                if isinstance(progress, float):
-                    percentage = f"{progress:.1f}%"
-                    status = f"Processing file {idx}/{total_files}: {Path(file.name).name} - {percentage}"
-                    yield status
-        
-        yield f"Successfully processed {total_files} files"
-    except Exception as e:
-        traceback.print_exc()
-        yield f"Error processing files: {str(e)}"
 
-def clear_chat():
-    """Clear the chat history"""
-    return None, None, None
+    Returns:
+        Status message
+    """
+    if not files:
+        logger.warning('No files provided for upload')
+        return 'No files selected'
+
+    try:
+        logger.info(f'Processing {len(files)} files')
+        for file in files:
+            logger.debug(f'Processing file: {file}')
+            await document_processor.process_document(file)
+
+        logger.info('File processing completed successfully')
+        return 'Files processed successfully'
+    except Exception as e:
+        logger.error(f'Error processing files: {e}', exc_info=True)
+        return f'Error processing files: {str(e)}'
+
+
+def clear_chat() -> tuple[list, str, str]:
+    """
+    Clear chat history and inputs.
+
+    Returns:
+        tuple of (chat history, question input, semantic output)
+    """
+    logger.debug('Clearing chat history and inputs')
+    return [], '', ''

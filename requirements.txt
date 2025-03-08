@@ -20,3 +20,5 @@ pypdfium2
 nltk
 PyMuPDF
 asyncio
+pre-commit
+ruff

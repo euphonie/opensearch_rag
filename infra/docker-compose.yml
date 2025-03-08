@@ -108,9 +108,8 @@ services:
 
 volumes:
   ollama_data:
-  opensearch-data: 
+  opensearch-data:
 
 networks:
   opensearch-network:
     driver: bridge
-

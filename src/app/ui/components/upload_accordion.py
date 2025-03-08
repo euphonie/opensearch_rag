@@ -5,9 +5,9 @@ from pathlib import Path
 
 import fitz
 import gradio as gr
+from utils.logging_config import setup_logger
 
 from ui.actions import handle_file_upload
-from utils.logging_config import setup_logger
 
 # Define the images directory relative to the current file
 IMAGES_DIR = Path(__file__).parent.parent / 'images'

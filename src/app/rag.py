@@ -1,9 +1,14 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from langchain.chains import RetrievalQA
 from langchain_community.llms import Bedrock, Ollama
 
-from loader.config import LoaderConfig
-from loader.vector_store import VectorStore
-from utils.logging_config import setup_logger
+if TYPE_CHECKING:
+    from app.loader import LoaderConfig, VectorStore
+
+from app.utils.logging_config import setup_logger
 
 logger = setup_logger(__name__)
 

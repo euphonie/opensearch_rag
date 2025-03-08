@@ -1,18 +1,18 @@
 from pathlib import Path
 
 import gradio as gr
+from utils.logging_config import setup_logger
 
 from ui.actions import show_document_details, update_documents_list
 from ui.components.chat_interface import create_chat_interface
 from ui.components.documents_accordion import create_documents_accordion
 from ui.components.upload_accordion import create_upload_accordion
-from utils.logging_config import setup_logger
 
 # Set up logger for this module
 logger = setup_logger(__name__)
 
 # Define the resources directory and CSS file path
-CSS_FILE = Path(__file__).parent.parent / 'resources' / 'styles.css'
+CSS_FILE = Path(__file__).parent.parent.parent / 'resources' / 'styles.css'
 
 
 def load_css() -> str:

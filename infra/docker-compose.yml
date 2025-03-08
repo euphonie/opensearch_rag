@@ -1,29 +1,6 @@
 version: '3.8'
 
 services:
-  localstack:
-    container_name: localstack_bedrock
-    image: localstack/localstack:3.0.0
-    ports:
-      - "4566:4566"
-    environment:
-      - SERVICES=bedrock,bedrock-runtime,opensearch,s3
-      - DEBUG=1
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - AWS_DEFAULT_REGION=us-east-1
-      - EAGER_SERVICE_LOADING=1
-      - LS_LOG=trace
-    networks:
-      - opensearch-network
-    volumes:
-      - ./localstack:/etc/localstack/init/ready.d
-      - "/var/run/docker.sock:/var/run/docker.sock"
-    depends_on:
-      # ollama:
-      #   condition: service_healthy
-      opensearch:
-        condition: service_healthy
-
   opensearch:
     image: opensearchproject/opensearch:2.11.1
     container_name: opensearch
@@ -50,7 +27,7 @@ services:
     networks:
       - opensearch-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"'"]
+      test: ["CMD-SHELL", "curl -s http://localhost:9200"]
       interval: 20s
       timeout: 10s
       retries: 5
@@ -66,45 +43,89 @@ services:
       - "DISABLE_SECURITY_DASHBOARDS_PLUGIN=true"
     networks:
       - opensearch-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:5601/status | grep -q '\"status\":\"green\"'"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
     depends_on:
       opensearch:
         condition: service_healthy
 
-  # ollama:
-  #   image: ollama/ollama:latest
-  #   ports:
-  #     - "11434:11434"
-  #   volumes:
-  #     - ~/.ollama:/root/.ollama
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "curl --silent --fail http://localhost:11434/ > /dev/null || exit 1"]
-  #     interval: 20s
-  #     timeout: 10s
-  #     retries: 1
-  #     start_period: 40s
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=*
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4'
+        reservations:
+          memory: 4G
+          cpus: '2'
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail http://localhost:11434/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - opensearch-network
+    restart: unless-stopped
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      stack:
+        soft: 67108864
+        hard: 67108864
 
-  # app:
-  #   build:
-  #     context: ..
-  #     dockerfile: infra/Dockerfile
-  #   ports:
-  #     - "8081:8081"
-  #   environment:
-  #     - AWS_ENDPOINT_URL=http://localstack:4566
-  #     - AWS_DEFAULT_REGION=us-east-1
-  #     - AWS_ACCESS_KEY_ID=test
-  #     - AWS_SECRET_ACCESS_KEY=test
-  #     - OLLAMA_HOST=http://ollama:11434
-  #     - OPENSEARCH_URL=http://opensearch:9200
-  #   volumes:
-  #     - ..:/app
-  #   depends_on:
-  #     localstack:
-  #       condition: service_started
-  #     ollama:
-  #       condition: service_healthy
-  #     opensearch:
-  #       condition: service_healthy
+  app:
+    build:
+      context: ..
+      dockerfile: ../src/Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - OLLAMA_HOST=http://ollama:11434
+      - OPENSEARCH_URL=http://opensearch:9200
+    volumes:
+      - ..:/app
+      - ./logs:/app/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+        compress: "true"
+        tag: "{{.Name}}/{{.ID}}"
+        labels: "production_status,app_component"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:8081/status | grep -q '\"status\":\"green\"'"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - opensearch-network
+    depends_on:
+      ollama:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
 
   redis:
     image: redis:7.2-alpine
@@ -128,7 +149,9 @@ volumes:
   redis_data:
     driver: local
   ollama_data:
+    driver: local
   opensearch-data:
+    driver: local
 
 networks:
   opensearch-network:

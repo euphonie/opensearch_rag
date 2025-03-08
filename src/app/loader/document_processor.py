@@ -18,7 +18,6 @@ from pathlib import Path
 
 import fitz
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-
 from metadata.redis_service import DocumentMetadata, RedisMetadataService
 from utils.logging_config import setup_logger
 

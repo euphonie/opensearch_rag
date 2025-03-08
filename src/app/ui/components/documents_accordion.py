@@ -1,9 +1,9 @@
 """Documents in Vector Store accordion component."""
 
 import gradio as gr
+from utils.logging_config import setup_logger
 
 from ui.actions import show_document_details
-from utils.logging_config import setup_logger
 
 # Set up logger for this module
 logger = setup_logger(__name__)

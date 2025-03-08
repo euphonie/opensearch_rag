@@ -6,7 +6,6 @@ from typing import Any
 
 import redis.asyncio as redis
 from pydantic import BaseModel
-
 from utils.logging_config import setup_logger
 
 logger = setup_logger(__name__)

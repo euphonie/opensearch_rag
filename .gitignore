@@ -4,3 +4,7 @@ files
 images
 *.pyc
 .cache
+egg-info
+dist
+build
+*.egg-info*

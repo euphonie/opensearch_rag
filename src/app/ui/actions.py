@@ -1,7 +1,6 @@
 from typing import Any
 
 import gradio as gr
-
 from utils.logging_config import setup_logger
 
 logger = setup_logger(__name__)

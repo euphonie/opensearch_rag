@@ -61,9 +61,12 @@ class QueryProcessor:
         Returns:
             str: Formatted semantic results table
         """
-        semantic_table = '\nSemantic Search Results:\n'
+        semantic_table = ''
+        processed_results = []
         for result in semantic_results:
-            semantic_table += f"- Score: {result.metadata.get('score', 'N/A')}\n  Text: {result.page_content}\n\n"
+            if result.page_content not in processed_results:
+                processed_results.append(result.page_content)
+                semantic_table += f"- Score: {result.metadata.get('score', 'N/A')} <br>  Page: {result.metadata.get('page', 'N/A')} <br>  Text: {result.page_content} <br> <br>"
         return semantic_table
 
     def _process_rag_result(self, rag_result):

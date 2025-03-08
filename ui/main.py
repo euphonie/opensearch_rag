@@ -90,61 +90,83 @@ def create_interface(config, processor, document_processor, vector_store):
         logger.info('Showing document details')
         return await show_document_details(evt, document_processor)
 
-    css = """div.logo-container { display: flex;  justify-content: center; padding: 1rem; } div.logo-container svg {width: 30px; height: 30px; transition: all 0.3s ease; } div.contain-element.collapsed div.logo-container svg { width: 24px; height: 24px;}"""
+    css = """
+        div.logo-container { display: flex; justify-content: center; padding: 1rem; }
+        div.logo-container svg { width: 30px; height: 30px; transition: all 0.3s ease; }
+        div.content-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; }
+        div.configuration-container {
+            padding: 0.75rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background-color: #f8f9fa;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+        div.config-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+        }
+        div.config-item {
+            background: white;
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #eaeaea;
+        }
+        div.config-item h5 {
+            margin: 0;
+            color: #666;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        div.config-item p {
+            margin: 0;
+            color: #2d2d2d;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        """
 
     with gr.Blocks(title='RAG with OpenSearch and LangChain', css=css) as demo:
         gr.Markdown(
             """
-            # RAG with OpenSearch and LangChain
-            Upload PDF documents and ask questions about their content.
+            <div class="logo-container">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M7 18H17V16H7V18Z" fill="currentColor"/>
+                <path d="M17 14H7V12H17V14Z" fill="currentColor"/>
+                <path d="M7 10H11V8H7V10Z" fill="currentColor"/>
+                <path fill-rule="evenodd" clip-rule="evenodd"
+                        d="M6 2C4.34315 2 3 3.34315 3 5V19C3 20.6569 4.34315 22 6 22H18C19.6569 22 21 20.6569 21 19V9C21 5.13401 17.866 2 14 2H6ZM6 4H13V9H19V19C19 19.5523 18.5523 20 18 20H6C5.44772 20 5 19.5523 5 19V5C5 4.44772 5.44772 4 6 4ZM15 4.10002C16.6113 4.4271 17.9413 5.52906 18.584 7H15V4.10002Z"
+                        fill="currentColor"/>
+                </svg>
+            </div>
+            <div class="content-container">
+                <h1>RAG with OpenSearch and LangChain</h1>
+                <p>Upload PDF documents and ask questions about their content.</p>
+            </div>
             """,
         )
-
-        with gr.Sidebar(elem_classes='contain-element'):
-            # Document Logo SVG
-            gr.Markdown(
-                """
-                <div class="logo-container">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M7 18H17V16H7V18Z" fill="currentColor"/>
-                        <path d="M17 14H7V12H17V14Z" fill="currentColor"/>
-                        <path d="M7 10H11V8H7V10Z" fill="currentColor"/>
-                        <path fill-rule="evenodd" clip-rule="evenodd"
-                              d="M6 2C4.34315 2 3 3.34315 3 5V19C3 20.6569 4.34315 22 6 22H18C19.6569 22 21 20.6569 21 19V9C21 5.13401 17.866 2 14 2H6ZM6 4H13V9H19V19C19 19.5523 18.5523 20 18 20H6C5.44772 20 5 19.5523 5 19V5C5 4.44772 5.44772 4 6 4ZM15 4.10002C16.6113 4.4271 17.9413 5.52906 18.584 7H15V4.10002Z"
-                              fill="currentColor"/>
-                    </svg>
-                </div>
-                """,
-            )
-
-            # File upload section
-            file_upload = gr.File(
-                label='Upload PDF Documents',
-                file_types=['.pdf'],
-                file_count='multiple',
-                type='filepath',
-            )
-            upload_button = gr.Button('Process Files', variant='primary')
-            upload_status = gr.Textbox(label='Upload Status', interactive=False)
-
-            # PDF Preview Gallery
-            preview_gallery = gr.Gallery(
-                label='PDF Previews',
-                show_label=True,
-                columns=[2],
-                rows=[2],
-                height='auto',
-                allow_preview=True,
-            )
-
-            # Configuration info
-            logger.debug('Setting up configuration display')
+        with gr.Blocks(title='Configuration', css=css):
             gr.Markdown(
                 f"""
-                ### Current Configuration:
-                - Embedder: {config.embedder_type}
-                - LLM: {config.llm_type}
-                - Model: {config.llm_model}
+                <div class="configuration-container">
+                    <div class="config-grid">
+                        <div class="config-item">
+                            <h5>Model</h5>
+                            <p>{config.llm_type}</p>
+                        </div>
+                        <div class="config-item">
+                            <h5>Embeddings</h5>
+                            <p>{config.embedder_type}</p>
+                        </div>
+                        <div class="config-item">
+                            <h5>Store</h5>
+                            <p>OpenSearch</p>
+                        </div>
+                    </div>
+                </div>
                 """,
             )
 
@@ -173,6 +195,27 @@ def create_interface(config, processor, document_processor, vector_store):
                     clear_btn = gr.Button('Clear Chat', variant='secondary')
 
             with gr.Column(scale=1):
+                with gr.Accordion('Upload to Vector Store', open=False):
+                    # File upload section
+                    file_upload = gr.File(
+                        label='Upload PDF Documents',
+                        file_types=['.pdf'],
+                        file_count='multiple',
+                        type='filepath',
+                    )
+                    upload_button = gr.Button('Process Files', variant='primary')
+                    upload_status = gr.Textbox(label='Upload Status', interactive=False)
+
+                    # PDF Preview Gallery
+                    preview_gallery = gr.Gallery(
+                        label='PDF Previews',
+                        show_label=True,
+                        columns=[2],
+                        rows=[2],
+                        height='auto',
+                        allow_preview=True,
+                    )
+
                 # Indexed Documents List
                 with gr.Accordion('Documents in Vector Store', open=False):
                     # List of documents, on click send id

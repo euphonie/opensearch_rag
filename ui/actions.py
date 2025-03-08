@@ -77,25 +77,25 @@ async def show_document_details(evt: gr.SelectData, document_processor: Any):
                 ['Chunks', str(doc_info.get('chunk_count', 0))],
             ]
             return (
-                f"### Document Details: {doc_info.get('title', 'Unknown')}",  # doc_title content
-                gr.update(visible=True),  # doc_title visibility
-                gr.update(visible=True),  # doc_details_box visibility
-                doc_info,  # metadata
-                stats,  # statistics
+                f"### Document Details: {doc_info.get('title', 'Unknown')}",
+                gr.update(visible=True),
+                gr.update(visible=True),
+                doc_info,
+                stats,
             )
         return (
-            '### Document Not Found',  # doc_title content
-            gr.update(visible=False),  # doc_title visibility
-            gr.update(visible=False),  # doc_details_box visibility
-            {},  # empty metadata
-            [],  # empty statistics
+            '### Document Not Found',
+            gr.update(visible=False),
+            gr.update(visible=False),
+            {},
+            [],
         )
     except Exception as e:
         logger.error(f'Error fetching document details: {e}', exc_info=True)
         return (
-            '### Error Loading Document',  # doc_title content
-            gr.update(visible=False),  # doc_title visibility
-            gr.update(visible=False),  # doc_details_box visibility
-            {'error': str(e)},  # error metadata
-            [],  # empty statistics
+            '### Error Loading Document',
+            gr.update(visible=False),
+            gr.update(visible=False),
+            {'error': str(e)},
+            [],
         )

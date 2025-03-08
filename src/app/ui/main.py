@@ -1,12 +1,12 @@
 from pathlib import Path
 
 import gradio as gr
-from utils.logging_config import setup_logger
 
-from ui.actions import show_document_details, update_documents_list
-from ui.components.chat_interface import create_chat_interface
-from ui.components.documents_accordion import create_documents_accordion
-from ui.components.upload_accordion import create_upload_accordion
+from app.ui.actions import show_document_details, update_documents_list
+from app.ui.components.chat_interface import create_chat_interface
+from app.ui.components.documents_accordion import create_documents_accordion
+from app.ui.components.upload_accordion import create_upload_accordion
+from app.utils.logging_config import setup_logger
 
 # Set up logger for this module
 logger = setup_logger(__name__)

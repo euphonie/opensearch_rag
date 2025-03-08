@@ -1,9 +1,8 @@
 """Chat interface component."""
 
 import gradio as gr
-from utils.logging_config import setup_logger
-
-from ui.actions import clear_chat
+from app.ui.actions import clear_chat
+from app.utils.logging_config import setup_logger
 
 # Set up logger for this module
 logger = setup_logger(__name__)

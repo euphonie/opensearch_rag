@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from langchain.docstore.document import Document
 
-    from .vector_store import VectorStore
+    from app.vector_store import VectorStore
 
 import asyncio
 import traceback
@@ -18,11 +18,11 @@ from pathlib import Path
 
 import fitz
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from metadata.redis_service import DocumentMetadata, RedisMetadataService
-from utils.logging_config import setup_logger
 
-from .config import LoaderConfig
-from .embeddings import EmbeddingsManager
+from app.loader.config import LoaderConfig
+from app.loader.embeddings import EmbeddingsManager
+from app.metadata.redis_service import DocumentMetadata, RedisMetadataService
+from app.utils.logging_config import setup_logger
 
 logger = setup_logger(__name__)
 

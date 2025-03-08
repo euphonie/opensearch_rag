@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from loader.config import LoaderConfig
+    from app.loader.config import LoaderConfig
 
 from dotenv import load_dotenv
 from langchain_community.embeddings import BedrockEmbeddings, OllamaEmbeddings

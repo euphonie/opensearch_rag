@@ -92,19 +92,19 @@ services:
   app:
     build:
       context: ..
-      dockerfile: ../src/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        - DEBIAN_FRONTEND=noninteractive
     ports:
       - "8081:8081"
     environment:
-      - AWS_ENDPOINT_URL=http://localstack:4566
-      - AWS_DEFAULT_REGION=us-east-1
-      - AWS_ACCESS_KEY_ID=test
-      - AWS_SECRET_ACCESS_KEY=test
-      - OLLAMA_HOST=http://ollama:11434
-      - OPENSEARCH_URL=http://opensearch:9200
+      - ENV_FILE=/app/secrets/.env
     volumes:
-      - ..:/app
+      - ../src:/app/src
       - ./logs:/app/logs
+      - ./secrets:/app/secrets
+    secrets:
+      - app_env
     logging:
       driver: "json-file"
       options:
@@ -156,3 +156,7 @@ volumes:
 networks:
   opensearch-network:
     driver: bridge
+
+secrets:
+  app_env:
+    file: .env

@@ -15,8 +15,8 @@ from langchain_community.document_loaders import (
     TextLoader,
 )
 
-from loader.config import LoaderConfig
-from loader.exceptions import LoaderError
+from app.loader.config import LoaderConfig
+from app.loader.exceptions import LoaderError
 
 
 class DocumentLoader:

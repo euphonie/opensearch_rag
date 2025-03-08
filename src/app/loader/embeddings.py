@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 from langchain_community.embeddings import OllamaEmbeddings
 
-from .config import LoaderConfig
+from app.loader.config import LoaderConfig
 
 
 class EmbeddingsManager:

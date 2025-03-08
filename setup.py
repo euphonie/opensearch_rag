@@ -6,7 +6,7 @@ setup(
     name='langchain-opensearch-rag',
     version='0.1.0',
     description='LangChain RAG application with OpenSearch',
-    author='Your Name',
+    author='euphonie',
     author_email='your.email@example.com',
     packages=find_packages(where='src'),
     package_dir={'': 'src'},

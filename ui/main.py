@@ -1,84 +1,32 @@
-import shutil
 from pathlib import Path
 
-import fitz
 import gradio as gr
 
+from ui.actions import show_document_details, update_documents_list
+from ui.components.chat_interface import create_chat_interface
+from ui.components.documents_accordion import create_documents_accordion
+from ui.components.upload_accordion import create_upload_accordion
 from utils.logging_config import setup_logger
-
-from .actions import (
-    clear_chat,
-    handle_file_upload,
-    show_document_details,
-    update_documents_list,
-)
 
 # Set up logger for this module
 logger = setup_logger(__name__)
 
-# Define the images directory relative to the current file
-IMAGES_DIR = Path(__file__).parent.parent / 'images'
+# Define the resources directory and CSS file path
+CSS_FILE = Path(__file__).parent.parent / 'resources' / 'styles.css'
 
 
-def ensure_images_dir() -> None:
-    """Ensure the images directory exists and is empty."""
-    if IMAGES_DIR.exists():
-        shutil.rmtree(IMAGES_DIR)
-    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
-
-
-async def preview_pdf(files: list[gr.File]) -> list[gr.Image]:
-    """
-    Generate preview images for PDF pages.
-
-    Args:
-        files: List of uploaded PDF files
-
-    Returns:
-        List of page images
-    """
-    if not files:
-        logger.debug('No files provided for preview')
-        return []
-
-    # Ensure clean images directory
-    ensure_images_dir()
-
-    images = []
+def load_css() -> str:
+    """Load CSS from file."""
     try:
-        for file_idx, file in enumerate(files):
-            doc = fitz.open(file.name)
-            logger.info(
-                f'Generating preview for PDF {file_idx + 1} with {doc.page_count} pages',
-            )
-
-            for page in doc:
-                # Convert page to image
-                pix = page.get_pixmap(
-                    matrix=fitz.Matrix(2, 2),
-                )  # 2x zoom for better quality
-                # Create preview image path
-                image_path = IMAGES_DIR / f'doc_{file_idx}_page_{page.number}.png'
-                pix.save(str(image_path))
-                images.append(str(image_path))
-                logger.debug(
-                    f'Generated preview for document {file_idx + 1}, page {page.number}',
-                )
-
-        return images
+        return CSS_FILE.read_text(encoding='utf-8')
     except Exception as e:
-        logger.error(f'Error generating PDF preview: {e}', exc_info=True)
-        return []
+        logger.error(f'Error loading CSS file: {e}')
+        return ''
 
 
 # Create the Gradio interface
 def create_interface(config, processor, document_processor, vector_store):
     logger.info('Initializing Gradio interface')
-
-    async def handle_file_upload_wrapper(files):
-        """Wrapper to handle the async generator"""
-        logger.info(f'Processing {len(files)} files')
-        return await handle_file_upload(files, document_processor)
 
     async def update_documents_list_wrapper():
         """Wrapper to handle document list updates"""
@@ -90,44 +38,8 @@ def create_interface(config, processor, document_processor, vector_store):
         logger.info('Showing document details')
         return await show_document_details(evt, document_processor)
 
-    css = """
-        div.logo-container { display: flex; justify-content: center; padding: 1rem; }
-        div.logo-container svg { width: 30px; height: 30px; transition: all 0.3s ease; }
-        div.content-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; }
-        div.configuration-container {
-            padding: 0.75rem;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            background-color: #f8f9fa;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            margin: 0.5rem 0;
-            font-size: 0.9rem;
-        }
-        div.config-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.5rem;
-        }
-        div.config-item {
-            background: white;
-            padding: 0.5rem;
-            border-radius: 4px;
-            border: 1px solid #eaeaea;
-        }
-        div.config-item h5 {
-            margin: 0;
-            color: #666;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        div.config-item p {
-            margin: 0;
-            color: #2d2d2d;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-        """
+    # Load CSS from file
+    css = load_css()
 
     with gr.Blocks(title='RAG with OpenSearch and LangChain', css=css) as demo:
         gr.Markdown(
@@ -172,101 +84,26 @@ def create_interface(config, processor, document_processor, vector_store):
 
         with gr.Row():
             with gr.Column(scale=2):
-                # Chat interface
-                chatbot = gr.Chatbot(
-                    label='Chat History',
-                    height=400,
-                    show_copy_button=True,
-                    type='messages',
+                # Create chat interface component
+                chatbot, question_input, submit_btn, clear_btn, semantic_output = (
+                    create_chat_interface(processor)
                 )
-
-                with gr.Accordion('Semantic Search Results', open=False):
-                    semantic_output = gr.Markdown(
-                        show_copy_button=True,
-                    )
-                question_input = gr.Textbox(
-                    label='Ask a question:',
-                    placeholder='Enter your question here...',
-                    lines=2,
-                )
-
-                with gr.Row():
-                    submit_btn = gr.Button('Submit', variant='primary')
-                    clear_btn = gr.Button('Clear Chat', variant='secondary')
 
             with gr.Column(scale=1):
-                with gr.Accordion('Upload to Vector Store', open=False):
-                    # File upload section
-                    file_upload = gr.File(
-                        label='Upload PDF Documents',
-                        file_types=['.pdf'],
-                        file_count='multiple',
-                        type='filepath',
-                    )
-                    upload_button = gr.Button('Process Files', variant='primary')
-                    upload_status = gr.Textbox(label='Upload Status', interactive=False)
+                # Create upload accordion component
+                upload_accordion, upload_button, upload_status = (
+                    create_upload_accordion(document_processor)
+                )
 
-                    # PDF Preview Gallery
-                    preview_gallery = gr.Gallery(
-                        label='PDF Previews',
-                        show_label=True,
-                        columns=[2],
-                        rows=[2],
-                        height='auto',
-                        allow_preview=True,
-                    )
-
-                # Indexed Documents List
-                with gr.Accordion('Documents in Vector Store', open=False):
-                    # List of documents, on click send id
-                    documents_list = gr.Dataframe(
-                        headers=['Document'],
-                        row_count=(10, 'fixed'),
-                        interactive=False,
-                        elem_classes='documents-list',
-                    )
-
-                    # Document Details Dialog Components
-                    doc_title = gr.Markdown('')
-                    doc_details_box = gr.Group()
-                    with doc_details_box:
-                        doc_metadata = gr.JSON(label='Metadata')
-                        doc_stats = gr.DataFrame(
-                            headers=['Property', 'Value'],
-                            label='Document Statistics',
-                        )
-
-        # Add custom CSS for document list and details
-        css = (
-            css
-            + """
-        .documents-list { max-height: 200px; overflow-y: auto; margin-bottom: 1rem; }
-        .documents-list::-webkit-scrollbar { width: 6px; }
-        .documents-list::-webkit-scrollbar-thumb { background: #666; border-radius: 3px; }
-        """
-        )
-
-        file_upload.change(
-            fn=preview_pdf,
-            inputs=[file_upload],
-            outputs=[preview_gallery],
-        )
-
-        # Handle file processing
-        upload_button.click(
-            fn=handle_file_upload_wrapper,
-            inputs=[file_upload],
-            outputs=[upload_status],
-            show_progress=True,
-            queue=True,
-        ).success(
-            fn=update_documents_list_wrapper,
-            outputs=[documents_list],
-        ).then(
-            lambda: None,
-            None,
-            [file_upload],
-        )
+                # Create documents accordion component
+                (
+                    docs_accordion,
+                    documents_list,
+                    doc_title,
+                    doc_details_box,
+                    doc_metadata,
+                    doc_stats,
+                ) = create_documents_accordion(document_processor)
 
         # Show document details when clicked
         documents_list.select(
@@ -280,22 +117,17 @@ def create_interface(config, processor, document_processor, vector_store):
             ],
         )
 
-        # Handle chat
-        submit_btn.click(
-            fn=processor.process_query,
-            inputs=[question_input],
-            outputs=[chatbot, semantic_output],
-        )
-
-        # Handle clear
-        clear_btn.click(
-            fn=clear_chat,
-            inputs=[],
-            outputs=[chatbot, question_input, semantic_output],
-        )
-
         # Initial documents list load
         demo.load(
+            fn=update_documents_list_wrapper,
+            outputs=[documents_list],
+        )
+
+        # Connect upload button success event to documents list update
+        upload_button.click(
+            fn=lambda: None,  # This is handled by the component
+            outputs=None,
+        ).success(
             fn=update_documents_list_wrapper,
             outputs=[documents_list],
         )

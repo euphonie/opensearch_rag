@@ -157,6 +157,11 @@ def create_interface(config, processor, document_processor, vector_store):
                     show_copy_button=True,
                     type='messages',
                 )
+
+                with gr.Accordion('Semantic Search Results', open=False):
+                    semantic_output = gr.Markdown(
+                        show_copy_button=True,
+                    )
                 question_input = gr.Textbox(
                     label='Ask a question:',
                     placeholder='Enter your question here...',
@@ -169,30 +174,24 @@ def create_interface(config, processor, document_processor, vector_store):
 
             with gr.Column(scale=1):
                 # Indexed Documents List
-                with gr.Accordion('Documents in Vector Store', open=True):
-                    documents_list = gr.Dataset(
-                        components=[gr.Textbox()],
-                        label='Click a document to view details',
-                        samples=[],
-                        type='index',
+                with gr.Accordion('Documents in Vector Store', open=False):
+                    # List of documents, on click send id
+                    documents_list = gr.Dataframe(
+                        headers=['Document'],
+                        row_count=(10, 'fixed'),
+                        interactive=False,
                         elem_classes='documents-list',
                     )
 
                     # Document Details Dialog Components
-                    doc_title = gr.Markdown(visible=False)
-                    with gr.Blocks(visible=False) as doc_details_box:
+                    doc_title = gr.Markdown('')
+                    doc_details_box = gr.Group()
+                    with doc_details_box:
                         doc_metadata = gr.JSON(label='Metadata')
                         doc_stats = gr.DataFrame(
                             headers=['Property', 'Value'],
                             label='Document Statistics',
                         )
-
-                # Semantic search results
-                semantic_output = gr.Textbox(
-                    label='Semantic Search Results',
-                    lines=15,
-                    show_copy_button=True,
-                )
 
         # Add custom CSS for document list and details
         css = (
@@ -231,8 +230,8 @@ def create_interface(config, processor, document_processor, vector_store):
             fn=show_document_details_wrapper,
             outputs=[
                 doc_title,
-                doc_title,
-                doc_details_box,
+                doc_title,  # For visibility
+                doc_details_box,  # For visibility
                 doc_metadata,
                 doc_stats,
             ],

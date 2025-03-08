@@ -2,23 +2,30 @@
 
 from __future__ import annotations
 
+import hashlib
+import os
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from langchain.docstore.document import Document
 
     from .vector_store import VectorStore
 
 import asyncio
 import traceback
+from datetime import datetime
+from pathlib import Path
 
 import fitz
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
+from metadata.redis_service import DocumentMetadata, RedisMetadataService
+from utils.logging_config import setup_logger
+
 from .config import LoaderConfig
 from .embeddings import EmbeddingsManager
+
+logger = setup_logger(__name__)
 
 
 class DocumentProcessor:
@@ -34,10 +41,23 @@ class DocumentProcessor:
 
         Args:
             config: Optional loader configuration
+            vector_store: Optional vector store instance
         """
         self.config = config or LoaderConfig()
         self.embeddings_manager = EmbeddingsManager(self.config)
         self.vector_store = vector_store
+        self.metadata_service = RedisMetadataService(
+            host=self.config.redis_host,
+            port=int(self.config.redis_port),
+        )
+
+    async def _calculate_file_hash(self, file_path: Path) -> str:
+        """Calculate SHA-256 hash of file."""
+        sha256_hash = hashlib.sha256()
+        with open(file_path, 'rb') as f:
+            for byte_block in iter(lambda: f.read(4096), b''):
+                sha256_hash.update(byte_block)
+        return sha256_hash.hexdigest()
 
     async def process_chunk(
         self,
@@ -125,8 +145,12 @@ class DocumentProcessor:
             Progress percentage (float between 0 and 100)
         """
         try:
-            # Get total pages
+            # Get total pages and file info
             total_pages = 0
+            chunk_count = 0
+            file_size = os.path.getsize(file_path)
+            file_hash = await self._calculate_file_hash(file_path)
+
             with fitz.open(str(file_path)) as doc:
                 total_pages = len(doc)
                 if total_pages == 0:
@@ -151,6 +175,7 @@ class DocumentProcessor:
                         # Calculate overall progress including page progress
                         page_progress = progress
                         overall_progress = ((i * 100) + page_progress) / total_pages
+                        chunk_count += 1
                         yield overall_progress
 
                     # Ensure we yield 100% for each page
@@ -158,10 +183,48 @@ class DocumentProcessor:
                         overall_progress = ((i + 1) * 100) / total_pages
                         yield overall_progress
 
+            # Save document metadata
+            doc_metadata = DocumentMetadata(
+                title=Path(file_path).name,
+                file_size=file_size,
+                page_count=total_pages,
+                chunk_count=chunk_count,
+                source_path=str(file_path),
+                indexed_date=datetime.now().isoformat(),
+                file_hash=file_hash,
+                additional_metadata={'processor_version': '1.0'},
+            )
+
+            await self.metadata_service.save_document_metadata(file_hash, doc_metadata)
+
         except Exception as e:
             traceback.print_exc()
             raise ValueError(f'Error processing document: {str(e)}') from e
 
     async def get_indexed_documents(self):
-        """Get list of indexed documents from OpenSearch."""
-        return []
+        """Get list of indexed documents from metadata service."""
+        try:
+            documents = await self.metadata_service.get_all_documents()
+            return [{'title': doc.title, 'id': doc.file_hash} for doc in documents]
+        except Exception as e:
+            logger.error(f'Error fetching indexed documents: {e}')
+            return []
+
+    async def get_document_metadata(self, doc_id: str) -> dict | None:
+        """
+        Get document metadata by ID.
+
+        Args:
+            doc_id: Document identifier
+
+        Returns:
+            Document metadata if found
+        """
+        try:
+            metadata = await self.metadata_service.get_document_metadata(doc_id)
+            if metadata:
+                return metadata.dict()
+            return None
+        except Exception as e:
+            logger.error(f'Error fetching document metadata: {e}')
+            return None

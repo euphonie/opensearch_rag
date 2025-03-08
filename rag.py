@@ -29,8 +29,8 @@ def get_llm(config: LoaderConfig, llm_type: str = None) -> Bedrock | Ollama:
         )
     elif llm_type.lower() == 'ollama':
         return Ollama(
-            base_url=config.base_url,
-            model=config.model,
+            base_url=config.ollama_host,
+            model=config.llm_model,
             temperature=0.7,
         )
     else:

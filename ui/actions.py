@@ -54,7 +54,8 @@ async def update_documents_list(document_processor: Any):
     """Get list of indexed documents from OpenSearch."""
     try:
         docs = await document_processor.get_indexed_documents()
-        return [[doc['title']] for doc in docs]
+        logger.info(f'Indexed documents: {docs}')
+        return [f'{doc["title"]}({doc["id"]})' for doc in docs]
     except Exception as e:
         logger.error(f'Error fetching indexed documents: {e}', exc_info=True)
         return []
@@ -63,7 +64,9 @@ async def update_documents_list(document_processor: Any):
 async def show_document_details(evt: gr.SelectData, document_processor: Any):
     """Show document metadata when clicked."""
     try:
-        doc_info = await document_processor.get_document_metadata(evt.value)
+        doc_id = evt.value.split('(')[1].split(')')[0]
+        doc_info = await document_processor.get_document_metadata(doc_id)
+        logger.info(f'Document info: {doc_info}')
         if doc_info:
             # Prepare statistics
             stats = [
@@ -74,13 +77,25 @@ async def show_document_details(evt: gr.SelectData, document_processor: Any):
                 ['Chunks', str(doc_info.get('chunk_count', 0))],
             ]
             return (
-                f"### Document Details: {doc_info.get('title', 'Unknown')}",
-                True,  # Show title
-                True,  # Show details box
-                doc_info,
-                stats,
+                f"### Document Details: {doc_info.get('title', 'Unknown')}",  # doc_title content
+                gr.update(visible=True),  # doc_title visibility
+                gr.update(visible=True),  # doc_details_box visibility
+                doc_info,  # metadata
+                stats,  # statistics
             )
-        return '### Document Not Found', True, True, {}, []
+        return (
+            '### Document Not Found',  # doc_title content
+            gr.update(visible=False),  # doc_title visibility
+            gr.update(visible=False),  # doc_details_box visibility
+            {},  # empty metadata
+            [],  # empty statistics
+        )
     except Exception as e:
         logger.error(f'Error fetching document details: {e}', exc_info=True)
-        return '### Error Loading Document', True, True, {'error': str(e)}, []
+        return (
+            '### Error Loading Document',  # doc_title content
+            gr.update(visible=False),  # doc_title visibility
+            gr.update(visible=False),  # doc_details_box visibility
+            {'error': str(e)},  # error metadata
+            [],  # empty statistics
+        )

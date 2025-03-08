@@ -45,6 +45,8 @@ class LoaderConfig:
         self.opensearch_username = os.getenv('OPENSEARCH_USERNAME')
         self.opensearch_password = os.getenv('OPENSEARCH_PASSWORD')
         self.opensearch_index_name = os.getenv('OPENSEARCH_INDEX_NAME')
+        self.redis_host = os.getenv('REDIS_HOST', 'localhost')
+        self.redis_port = os.getenv('REDIS_PORT', '6379')
 
     def validate(self):
         """

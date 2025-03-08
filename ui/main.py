@@ -1,4 +1,4 @@
-import tempfile
+import shutil
 from pathlib import Path
 
 import fitz
@@ -11,38 +11,54 @@ from .actions import clear_chat, handle_file_upload
 # Set up logger for this module
 logger = setup_logger(__name__)
 
+# Define the images directory relative to the current file
+IMAGES_DIR = Path(__file__).parent.parent / 'images'
 
-def preview_pdf(file: gr.File) -> list[gr.Image]:
+
+def ensure_images_dir() -> None:
+    """Ensure the images directory exists and is empty."""
+    if IMAGES_DIR.exists():
+        shutil.rmtree(IMAGES_DIR)
+    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+
+
+async def preview_pdf(files: list[gr.File]) -> list[gr.Image]:
     """
     Generate preview images for PDF pages.
 
     Args:
-        file: Uploaded PDF file
+        files: List of uploaded PDF files
 
     Returns:
         List of page images
     """
-    if not file:
-        logger.debug('No file provided for preview')
+    if not files:
+        logger.debug('No files provided for preview')
         return []
 
-    try:
-        doc = fitz.open(file.name)
-        images = []
-        logger.info(f'Generating preview for PDF with {doc.page_count} pages')
+    # Ensure clean images directory
+    ensure_images_dir()
 
-        # Create a secure temporary directory
-        with tempfile.TemporaryDirectory() as temp_dir:
+    images = []
+    try:
+        for file_idx, file in enumerate(files):
+            doc = fitz.open(file.name)
+            logger.info(
+                f'Generating preview for PDF {file_idx + 1} with {doc.page_count} pages',
+            )
+
             for page in doc:
                 # Convert page to image
                 pix = page.get_pixmap(
                     matrix=fitz.Matrix(2, 2),
                 )  # 2x zoom for better quality
-                # Create secure temporary file path
-                temp_path = Path(temp_dir) / f'page_{page.number}.png'
-                pix.save(str(temp_path))
-                images.append(str(temp_path))
-                logger.debug(f'Generated preview for page {page.number}')
+                # Create preview image path
+                image_path = IMAGES_DIR / f'doc_{file_idx}_page_{page.number}.png'
+                pix.save(str(image_path))
+                images.append(str(image_path))
+                logger.debug(
+                    f'Generated preview for document {file_idx + 1}, page {page.number}',
+                )
 
         return images
     except Exception as e:
@@ -78,6 +94,16 @@ def create_interface(config, processor, document_processor):
             )
             upload_button = gr.Button('Process Files', variant='primary')
             upload_status = gr.Textbox(label='Upload Status', interactive=False)
+
+            # PDF Preview Gallery
+            preview_gallery = gr.Gallery(
+                label='PDF Previews',
+                show_label=True,
+                columns=[2],
+                rows=[2],
+                height='auto',
+                allow_preview=True,
+            )
 
             # Configuration info
             logger.debug('Setting up configuration display')
@@ -117,7 +143,14 @@ def create_interface(config, processor, document_processor):
                     show_copy_button=True,
                 )
 
-        # Handle file upload
+        # Handle file upload and preview
+        file_upload.change(
+            fn=preview_pdf,
+            inputs=[file_upload],
+            outputs=[preview_gallery],
+        )
+
+        # Handle file processing
         upload_button.click(
             fn=handle_file_upload_wrapper,
             inputs=[file_upload],

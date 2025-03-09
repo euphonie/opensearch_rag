@@ -28,6 +28,20 @@ div.configuration-container {
     font-size: 0.9rem;
 }
 
+/* Light theme styles */
+.light .configuration-container {
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    color: #333;
+}
+
+/* Dark theme styles */
+.dark .configuration-container {
+    background-color: #2c2c2c;
+    border: 1px solid #444;
+    color: #fff;
+}
+
 div.config-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);

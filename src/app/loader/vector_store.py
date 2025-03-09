@@ -27,6 +27,7 @@ class VectorStore:
         elif self.embedder_type == 'ollama':
             try:
                 return OllamaEmbeddings(
+                    base_url=self.config.ollama_host,
                     model=self.config.llm_model,
                 )
             except Exception as e:

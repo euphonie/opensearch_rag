@@ -15,22 +15,21 @@ class LoaderConfig:
     def __init__(self, config: dict[str, Any] = None):
         """Initialize configuration."""
         config = config or {}
-
         # Provider selection
         self.embedding_provider = os.getenv('EMBEDDING_PROVIDER', 'ollama').lower()
         if self.embedding_provider not in ['openai', 'ollama']:
             raise ValueError("EMBEDDING_PROVIDER must be either 'openai' or 'ollama'")
 
         # OpenAI settings
-        self.openai_api_key = os.getenv('OPENAI_API_KEY')
-        self.openai_org_id = os.getenv('OPENAI_ORGANIZATION')
+        self.openai_api_key = os.getenv('OPENAI_API_KEY', '')
+        self.openai_org_id = os.getenv('OPENAI_ORGANIZATION', '')
 
         # Ollama settings
         self.ollama_host = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
         self.embeddings_model = os.getenv('EMBEDDINGS_MODEL', 'mxbai-embed-large')
         self.llm_model = os.getenv('LLM_MODEL', 'phi3.5')
-        self.embedder_type = os.getenv('EMBEDDER_TYPE', 'bedrock')
-        self.llm_type = os.getenv('LLM_TYPE', 'bedrock')
+        self.embedder_type = os.getenv('EMBEDDER_TYPE', 'ollama')
+        self.llm_type = os.getenv('LLM_TYPE', 'ollama')
 
         # General settings
         self.chunk_size = int(os.getenv('CHUNK_SIZE', '1000'))
@@ -38,13 +37,13 @@ class LoaderConfig:
         self.vector_store_path = Path(os.getenv('VECTOR_STORE_PATH', 'vector_store'))
         self.supported_extensions = os.getenv(
             'SUPPORTED_EXTENSIONS',
-            '.txt,.md,.py',
+            '.txt,.md,.py,.pdf',
         ).split(',')
         self.embedding_size = int(os.getenv('EMBEDDING_SIZE', '3072'))
-        self.opensearch_url = os.getenv('OPENSEARCH_URL')
-        self.opensearch_username = os.getenv('OPENSEARCH_USERNAME')
-        self.opensearch_password = os.getenv('OPENSEARCH_PASSWORD')
-        self.opensearch_index_name = os.getenv('OPENSEARCH_INDEX_NAME')
+        self.opensearch_url = os.getenv('OPENSEARCH_URL', 'http://localhost:9200')
+        self.opensearch_username = os.getenv('OPENSEARCH_USERNAME', 'admin')
+        self.opensearch_password = os.getenv('OPENSEARCH_PASSWORD', 'admin')
+        self.opensearch_index_name = os.getenv('OPENSEARCH_INDEX_NAME', 'documents')
         self.redis_host = os.getenv('REDIS_HOST', 'localhost')
         self.redis_port = os.getenv('REDIS_PORT', '6379')
 

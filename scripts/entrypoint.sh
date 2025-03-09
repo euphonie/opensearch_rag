@@ -4,16 +4,8 @@ set -e
 # Function to load environment variables from Docker secrets
 load_secrets() {
     # Check if we have a mounted secrets directory
-    if [ -d "/run/secrets" ]; then
-        # Load each secret into environment variables
-        for secret in /run/secrets/*; do
-            if [ -f "$secret" ]; then
-                # Get the secret name from the filename
-                secret_name=$(basename "$secret")
-                # Export the secret value to an environment variable
-                export "$secret_name"="$(cat $secret)"
-            fi
-        done
+    if [ -d "/app/secrets" ]; then
+        export $(cat /app/secrets/.env | grep -v '^#' | sed 's/=$//' | sed 's/\r$//' | xargs)
     fi
 }
 
@@ -30,7 +22,7 @@ create_env_file() {
 
     # Otherwise, create from secrets
     echo "Creating .env file from secrets"
-    for secret in /run/secrets/*; do
+    for secret in /app/secrets/; do
         if [ -f "$secret" ]; then
             secret_name=$(basename "$secret")
             echo "$secret_name=$(cat $secret)" >> "$ENV_FILE"
@@ -38,11 +30,12 @@ create_env_file() {
     done
 }
 
-# Load secrets into environment
-load_secrets
 
 # Create or update .env file
 create_env_file
+
+# Load secrets into environment
+load_secrets
 
 # Execute the main command
 exec python -m "$@"

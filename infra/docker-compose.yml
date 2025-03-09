@@ -54,14 +54,16 @@ services:
         condition: service_healthy
 
   ollama:
-    image: ollama/ollama:latest
+    build:
+      context: .
+      dockerfile: ollama.Dockerfile
     ports:
       - "11434:11434"
     volumes:
-      - ollama_data:/root/.ollama
+      - ${HOME}/.ollama:/root/.ollama
     environment:
-      - OLLAMA_HOST=0.0.0.0
-      - OLLAMA_ORIGINS=*
+      - DOWNLOAD_MODELS=false
+      - MODELS=mxbai-embed-large,phi3.5
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     deploy:
@@ -73,11 +75,11 @@ services:
           memory: 4G
           cpus: '2'
     healthcheck:
-      test: ["CMD-SHELL", "curl --silent --fail http://localhost:11434/api/health || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 120s
     networks:
       - opensearch-network
     restart: unless-stopped
@@ -95,37 +97,55 @@ services:
       dockerfile: Dockerfile
       args:
         - DEBIAN_FRONTEND=noninteractive
+        - PIP_NO_CACHE_DIR=1
+    container_name: app
     ports:
       - "8081:8081"
     environment:
       - ENV_FILE=/app/secrets/.env
+      - GRADIO_ALLOWED_ORIGINS=["*"]
+      # Service connections
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - EMBEDDINGS_MODEL=mxbai-embed-large
+      - LLM_MODEL=phi3.5
+      - EMBEDDER_TYPE=ollama
+      - LLM_TYPE=ollama
+      - OPENSEARCH_URL=http://opensearch:9200
+      - OPENSEARCH_USERNAME=admin
+      - OPENSEARCH_PASSWORD=admin
+      - OPENSEARCH_INDEX_NAME=documents
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # Processing settings
+      - EMBEDDING_PROVIDER=ollama
+      - CHUNK_SIZE=1000
+      - CHUNK_OVERLAP=200
+      # Debug settings
+      - PYTHONUNBUFFERED=1
     volumes:
       - ../src:/app/src
       - ./logs:/app/logs
       - ./secrets:/app/secrets
     secrets:
       - app_env
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "3"
-        compress: "true"
-        tag: "{{.Name}}/{{.ID}}"
-        labels: "production_status,app_component"
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:8081/status | grep -q '\"status\":\"green\"'"]
-      interval: 20s
+      test: ["CMD-SHELL", "curl -f http://localhost:8081 || exit 1"]
+      interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 3
       start_period: 40s
     networks:
-      - opensearch-network
+      opensearch-network:
+        aliases:
+          - app
     depends_on:
-      ollama:
-        condition: service_healthy
       opensearch:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
 
   redis:
     image: redis:7.2-alpine
@@ -143,12 +163,14 @@ services:
       interval: 5s
       timeout: 3s
       retries: 3
+    networks:
+      opensearch-network:
+        aliases:
+          - redis
     restart: unless-stopped
 
 volumes:
   redis_data:
-    driver: local
-  ollama_data:
     driver: local
   opensearch-data:
     driver: local

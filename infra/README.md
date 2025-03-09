@@ -1,86 +1,152 @@
-# Infrastructure Setup
+# Infrastructure Configuration
 
-This folder contains the infrastructure configuration for running the RAG application with LocalStack, Ollama, and OpenSearch.
+This directory contains the infrastructure configuration for the LangChain OpenSearch RAG application.
 
 ## Components
 
-- LocalStack container running AWS Bedrock emulator
-- Ollama container running local LLMs
-- OpenSearch container for vector storage
-- OpenSearch Dashboards for data visualization
-- Python application container running the RAG application
+- **Docker Compose**: Configuration for all services
+- **Redis**: Configuration for Redis cache
+- **Scripts**: Helper scripts for health checks and maintenance
+- **Secrets**: Environment variables and secrets
 
-## Prerequisites
+## Docker Compose Services
 
-Before starting the infrastructure, make sure you have the required models installed locally:
+### OpenSearch
+
+Vector database for storing document embeddings and metadata.
+
+- **Image**: opensearchproject/opensearch:2.11.1
+- **Ports**: 9200 (HTTP), 9600 (Performance Analyzer)
+- **Volume**: opensearch-data (persistent storage)
+- **Environment Variables**:
+  - `DISABLE_SECURITY_PLUGIN=true`: Disables security for development
+  - `OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m`: Memory settings
+
+### OpenSearch Dashboards
+
+Web interface for OpenSearch management.
+
+- **Image**: opensearchproject/opensearch-dashboards:2.11.1
+- **Port**: 5601
+- **Dependencies**: Requires OpenSearch to be healthy
+
+### Ollama
+
+Local LLM inference service.
+
+- **Build**: Custom Dockerfile with curl for health checks
+- **Port**: 11434
+- **Volume**: Maps local ~/.ollama to container for model sharing
+- **Environment Variables**:
+  - `DOWNLOAD_MODELS`: Set to false to prevent automatic downloads
+  - `MODELS`: Comma-separated list of models to use
+- **Resource Limits**: 8GB memory, 4 CPUs
+
+### App
+
+Main application service with Gradio web interface.
+
+- **Build**: Custom Dockerfile from project root
+- **Port**: 8081
+- **Volumes**:
+  - Source code: For live development
+  - Logs: For persistent logging
+  - Secrets: For environment variables
+- **Environment Variables**:
+  - `OLLAMA_HOST`: URL for Ollama API
+  - `EMBEDDINGS_MODEL`: Model for embeddings
+  - `LLM_MODEL`: Model for text generation
+  - `OPENSEARCH_URL`: URL for OpenSearch
+  - `REDIS_HOST`: Hostname for Redis
+
+### Redis
+
+Caching service for improved performance.
+
+- **Image**: redis:7.2-alpine
+- **Port**: 6379
+- **Volume**: redis_data (persistent storage)
+- **Configuration**: Custom redis.conf file
+
+## Network Configuration
+
+All services are connected to the `opensearch-network` bridge network, allowing them to communicate using service names as hostnames.
+
+## Volumes
+
+- **opensearch-data**: Persistent storage for OpenSearch
+- **redis_data**: Persistent storage for Redis
+
+## Configuration
+
+### Redis Configuration
+
+Redis is configured using the `redis/redis.conf` file. Key settings:
+
+- **maxmemory**: 512MB
+- **maxmemory-policy**: allkeys-lru (Least Recently Used eviction)
+
+### Environment Variables
+
+Create a `.env` file in the `secrets` directory with any custom environment variables.
+
+## Health Checks
+
+All services include health checks to ensure dependencies are properly managed:
+
+- **OpenSearch**: Checks HTTP endpoint
+- **OpenSearch Dashboards**: Checks status endpoint
+- **Ollama**: Checks API version endpoint
+- **App**: Checks HTTP endpoint
+- **Redis**: Uses redis-cli ping
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Service Dependencies**: If services fail to start, check the health of their dependencies
+2. **Resource Constraints**: Reduce resource limits if your system has limited memory
+3. **Network Issues**: Ensure all services are on the same network
+4. **Volume Permissions**: Check permissions if volume mounts fail
+
+### Debugging Commands
 
 ```bash
-ollama pull llama2
-ollama pull nomic-embed-text
+# Check service status
+docker-compose -f docker-compose.yml ps
+
+# View service logs
+docker-compose -f docker-compose.yml logs -f [service_name]
+
+# Check network connectivity
+docker-compose -f docker-compose.yml exec app ping redis
+docker-compose -f docker-compose.yml exec app curl -f http://opensearch:9200
+
+# Check Redis connectivity
+docker-compose -f docker-compose.yml exec app redis-cli -h redis ping
+
+# Check Ollama API
+docker-compose -f docker-compose.yml exec app curl -f http://host.docker.internal:11434/api/version
 ```
 
-The setup will use your local Ollama models from ~/.ollama.
+## Customization
 
-## Usage
+### Using Different Models
 
-1. Start the infrastructure:
-```bash
-docker-compose up -d
-```
+To use different models with Ollama:
 
-2. The application will be available at:
-   - RAG Application: http://localhost:8081
-   - OpenSearch Dashboards: http://localhost:5601
+1. Pull the models locally:
+   ```bash
+   ollama pull your-model-name
+   ```
 
-3. Service endpoints:
-   - LocalStack Bedrock: http://localhost:4566
-   - Ollama API: http://localhost:11434
-   - OpenSearch: http://localhost:9200
-   - OpenSearch Dashboards: http://localhost:5601
+2. Update the `EMBEDDINGS_MODEL` and `LLM_MODEL` environment variables in docker-compose.yml
 
-## Environment Variables
+### Scaling Services
 
-The following environment variables are automatically configured:
-- AWS_ENDPOINT_URL=http://localstack:4566
-- AWS_DEFAULT_REGION=us-east-1
-- AWS_ACCESS_KEY_ID=test
-- AWS_SECRET_ACCESS_KEY=test
-- OLLAMA_HOST=http://ollama:11434
-- OPENSEARCH_URL=http://opensearch:9200
+For production deployments, consider:
 
-## Notes
-
-- LocalStack is configured to proxy Bedrock requests to local Ollama models:
-  - amazon.titan-embed-text-v1 → nomic-embed-text
-  - anthropic.claude-v2 → llama2
-- The application container mounts the local directory, allowing for real-time code changes
-- Ollama uses your local models from ~/.ollama
-- OpenSearch runs in development mode with security disabled
-- OpenSearch data is persisted in a Docker volume
-
-## OpenSearch Dashboard
-
-The OpenSearch Dashboard is available at http://localhost:5601. You can use it to:
-- View and manage indices
-- Explore your vector data
-- Monitor cluster health
-- Create visualizations and dashboards
-
-No authentication is required in development mode.
-
-## Model Information
-
-The setup uses the following Ollama models:
-- nomic-embed-text: For text embeddings (replacing Titan)
-- llama2: For text generation (replacing Claude)
-
-Make sure these models are installed locally using `ollama pull` before starting the infrastructure.
-
-## OpenSearch Information
-
-The OpenSearch instance is configured with:
-- Single node setup
-- Security plugin disabled for development
-- Memory limited to 512MB
-- Data persistence through Docker volume
-- Health check ensuring cluster is green before dependent services start
+1. Increasing OpenSearch resources
+2. Adding multiple OpenSearch nodes
+3. Implementing proper security (disable `DISABLE_SECURITY_PLUGIN`)
+4. Using a production-ready Redis configuration

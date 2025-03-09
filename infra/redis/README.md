@@ -115,41 +115,6 @@ class CachedEmbeddings:
         return embedding
 ```
 
-### Query Cache
-
-```python
-class CachedRetriever:
-    """Cache retrieval results in Redis."""
-
-    def __init__(self, config, redis_client, retriever):
-        self.config = config
-        self.redis = redis_client
-        self.retriever = retriever
-
-    async def retrieve(self, query, **kwargs):
-        # Generate cache key
-        cache_key = f"query:{hashlib.md5(query.encode()).hexdigest()}"
-
-        # Check cache
-        cached = await self.redis.get(cache_key)
-        if cached:
-            return pickle.loads(cached)
-
-        # Perform retrieval
-        results = await self.retriever.retrieve(query, **kwargs)
-
-        # Cache result
-        await self.redis.set(
-            cache_key,
-            pickle.dumps(results),
-            ex=3600  # 1 hour expiry
-        )
-
-        return results
-```
-
-## Performance Tuning
-
 ### Memory Settings
 
 The default memory limit is 512MB, which is suitable for most deployments. For larger deployments, consider increasing this value:

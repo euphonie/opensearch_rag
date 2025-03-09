@@ -103,7 +103,6 @@ langchain-opensearch-rag/
 ├── src/                    # Source code
 │   └── app/                # Application code
 │       ├── loader/         # Document loading and processing
-│       ├── retriever/      # Vector retrieval
 │       ├── ui/             # Gradio UI components
 │       └── main.py         # Application entry point
 └── README.md               # This file

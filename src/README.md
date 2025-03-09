@@ -8,7 +8,6 @@ This directory contains the source code for the LangChain OpenSearch RAG applica
 src/
 ├── app/                # Main application code
 │   ├── loader/         # Document loading and processing
-│   ├── retriever/      # Vector retrieval
 │   ├── ui/             # Gradio UI components
 │   └── main.py         # Application entry point
 └── README.md           # This file
@@ -37,17 +36,6 @@ Key files:
 - `document_loader.py`: Document loading and processing
 - `embeddings.py`: Embedding generation
 - `vector_store.py`: OpenSearch integration
-
-### Retriever (`app/retriever/`)
-
-Handles:
-- Querying OpenSearch for relevant document chunks
-- Ranking and filtering results
-- Preparing context for the LLM
-
-Key files:
-- `opensearch_retriever.py`: OpenSearch query logic
-- `context_builder.py`: Context preparation for LLM
 
 ### UI Components (`app/ui/`)
 

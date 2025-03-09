@@ -55,24 +55,6 @@ Manages:
 - Document storage and retrieval
 - Vector search operations
 
-### Retriever (`retriever/`)
-
-The retriever module handles:
-
-#### OpenSearch Retriever (`retriever/opensearch_retriever.py`)
-
-Implements:
-- Semantic search using embeddings
-- Relevance scoring
-- Result filtering and ranking
-
-#### Context Builder (`retriever/context_builder.py`)
-
-Responsible for:
-- Assembling retrieved chunks into context
-- Formatting context for the LLM
-- Managing context length constraints
-
 ### UI Components (`ui/`)
 
 The UI module provides:

@@ -118,8 +118,8 @@ services:
       - REDIS_PORT=6379
       # Processing settings
       - EMBEDDING_PROVIDER=ollama
-      - CHUNK_SIZE=1000
-      - CHUNK_OVERLAP=200
+      - CHUNK_SIZE=500
+      - CHUNK_OVERLAP=100
       # Debug settings
       - PYTHONUNBUFFERED=1
     volumes:

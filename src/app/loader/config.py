@@ -32,8 +32,8 @@ class LoaderConfig:
         self.llm_type = os.getenv('LLM_TYPE', 'ollama')
 
         # General settings
-        self.chunk_size = int(os.getenv('CHUNK_SIZE', '1000'))
-        self.chunk_overlap = int(os.getenv('CHUNK_OVERLAP', '200'))
+        self.chunk_size = int(os.getenv('CHUNK_SIZE', '500'))
+        self.chunk_overlap = int(os.getenv('CHUNK_OVERLAP', '100'))
         self.vector_store_path = Path(os.getenv('VECTOR_STORE_PATH', 'vector_store'))
         self.supported_extensions = os.getenv(
             'SUPPORTED_EXTENSIONS',

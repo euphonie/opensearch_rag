@@ -17,8 +17,8 @@ from datetime import datetime
 from pathlib import Path
 
 import fitz
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 
+from app.loader.chunk_splitter import ChunkSplitter
 from app.loader.config import LoaderConfig
 from app.loader.embeddings import EmbeddingsManager
 from app.metadata.redis_service import DocumentMetadata, RedisMetadataService
@@ -76,12 +76,12 @@ class DocumentProcessor:
             metadatas=[chunk.metadata],
         )
 
-    async def process_document_parallel(
+    async def process_page_parallel(
         self,
         text: str,
         metadata: dict,
-        chunk_size: int = 1000,
-        chunk_overlap: int = 200,
+        chunk_size: int = 500,  # Reduced chunk size for better granularity
+        chunk_overlap: int = 100,  # Adjusted overlap
     ):
         """
         Process document text in parallel with chunking and embedding.
@@ -89,49 +89,55 @@ class DocumentProcessor:
         Args:
             text: Document text to process
             metadata: Document metadata
-            embeddings_manager: Embeddings manager instance
-            vector_store: Vector store instance
-            chunk_size: Size of text chunks
-            chunk_overlap: Overlap between chunks
+            chunk_size: Size of text chunks (default: 500)
+            chunk_overlap: Overlap between chunks (default: 100)
 
         Yields:
             Progress percentage
         """
-        # Initialize text splitter
-        text_splitter = RecursiveCharacterTextSplitter(
+        chunk_splitter = ChunkSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
-            length_function=len,
         )
+        chunks = chunk_splitter.split_into_chunks(text, metadata)
+        enhanced_chunks = chunk_splitter.add_neighbouring_content(chunks)
 
-        # Split text into chunks
-        chunks = text_splitter.create_documents(
-            texts=[text],
-            metadatas=[metadata],
-        )
-
-        total_chunks = len(chunks)
+        total_chunks = len(enhanced_chunks)
         tasks = []
+        processed = 0
+        batch_size = 3  # Reduced batch size for better reliability
 
-        # Process chunks in parallel
-        for i, chunk in enumerate(chunks):
+        # Process enhanced chunks in parallel with controlled batching
+        for _, chunk in enumerate(enhanced_chunks):
+            # Skip empty chunks
+            if not chunk.page_content:
+                continue
+
             task = asyncio.create_task(
                 self.process_chunk(chunk),
             )
             tasks.append(task)
+            processed += 1
 
-            # Yield progress
-            progress = ((i + 1) / total_chunks) * 100
-            yield progress
-
-            # Process in batches to avoid overwhelming the system
-            if len(tasks) >= 5:  # Process 5 chunks at a time
+            # Process in smaller batches
+            if len(tasks) >= batch_size:
                 await asyncio.gather(*tasks)
                 tasks = []
+
+            # Calculate and yield progress
+            progress = (processed / total_chunks) * 100
+            logger.info(
+                f'Percentage of processed chunks {progress}, ({processed}, {total_chunks}) for page {metadata["page"]}',
+            )
+            yield progress
 
         # Process any remaining tasks
         if tasks:
             await asyncio.gather(*tasks)
+
+        # Ensure we yield 100% at completion
+        if processed > 0:
+            yield 100.0
 
     async def load_documents(self, file_path: Path):
         """
@@ -167,7 +173,7 @@ class DocumentProcessor:
 
                     # Process page in parallel
                     page_progress = 0
-                    async for progress in self.process_document_parallel(
+                    async for progress in self.process_page_parallel(
                         text=text,
                         metadata=metadata,
                     ):

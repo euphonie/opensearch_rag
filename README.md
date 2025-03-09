@@ -2,6 +2,8 @@
 
 A Retrieval-Augmented Generation (RAG) application using LangChain, OpenSearch, and Ollama for local LLM inference.
 
+![Demo](demo.gif)
+
 ## Overview
 
 This project implements a document processing and question-answering system that:
@@ -19,27 +21,8 @@ The system consists of the following components:
 - **App Service**: Python application with Gradio web interface
 - **OpenSearch**: Vector database for storing document embeddings
 - **OpenSearch Dashboards**: Web interface for OpenSearch management
-- **Redis**: Caching layer for improved performance
+- **Redis**: Caching layer that saves metadata from processed documents
 - **Ollama**: Local inference for embeddings and LLM responses
-
-```
-┌─────────┐     ┌───────────┐     ┌────────────┐
-│  Gradio │────▶│   App     │────▶│  OpenSearch│
-│   UI    │◀────│  Service  │◀────│            │
-└─────────┘     └───────────┘     └────────────┘
-                      │                  ▲
-                      ▼                  │
-                ┌───────────┐     ┌────────────┐
-                │   Redis   │     │ OpenSearch │
-                │  Cache    │     │ Dashboards │
-                └───────────┘     └────────────┘
-                      │
-                      ▼
-                ┌───────────┐
-                │  Ollama   │
-                │   LLM     │
-                └───────────┘
-```
 
 ## Prerequisites
 
